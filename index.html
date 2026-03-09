@@ -610,15 +610,16 @@ function doLogout() {
 }
 
 // ── Auto-login saat halaman dibuka ──────────────────
-// Cek localStorage → verifikasi ke Firebase → login jika valid
+// Auto-login: cek session localStorage → verifikasi ke Firebase
 window.addEventListener('DOMContentLoaded', async () => {
   const s = getSess();
   if (s && s.username) {
-    // Tampilkan spinner singkat
     const auth = g('screen-auth');
     auth.innerHTML += `<div id="autoLoginSpinner" style="position:fixed;inset:0;background:#0a0a0a;display:flex;align-items:center;justify-content:center;z-index:9999;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#444;letter-spacing:2px">MEMUAT...</div>`;
+    const removeSpinner = () => { const sp = document.getElementById('autoLoginSpinner'); if (sp) sp.remove(); };
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
     try {
-      const userData = await fbGetUser(s.username);
+      const userData = await Promise.race([fbGetUser(s.username), timeout]);
       if (userData) {
         loginOK(s.username);
         return;
@@ -626,11 +627,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         clearSess();
       }
     } catch (err) {
-      // Firebase gagal — tetap tampilkan login manual
       clearSess();
     }
-    const sp = document.getElementById('autoLoginSpinner');
-    if (sp) sp.remove();
+    removeSpinner();
   }
 });
 
