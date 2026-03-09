@@ -293,6 +293,71 @@ select option{background:var(--black3)}
 @keyframes slideDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes authEntrance{from{opacity:0;transform:translateY(30px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 
+
+/* ── IZINKAN BTN ── */
+.izinkan-wrap{
+  margin-bottom:16px;
+  overflow:hidden;
+  transition:max-height .5s cubic-bezier(.4,0,.2,1), opacity .5s ease, margin .5s ease;
+  max-height:80px;
+  opacity:1;
+}
+.izinkan-wrap.hide{
+  max-height:0;
+  opacity:0;
+  margin-bottom:0;
+}
+.btn-izinkan{
+  width:100%;
+  background:transparent;
+  border:1px solid #444;
+  color:var(--silver2);
+  padding:13px 20px;
+  font-size:11px;
+  font-weight:600;
+  font-family:'IBM Plex Sans',sans-serif;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  transition:all .2s;
+  animation:fadeUp .4s ease both;
+}
+.btn-izinkan:hover{border-color:var(--silver);color:var(--white);background:rgba(255,255,255,0.03)}
+.btn-izinkan:active{transform:scale(0.98)}
+.izinkan-dot{width:7px;height:7px;border-radius:50%;background:#666;transition:background .3s}
+
+/* ── FOOTER ── */
+.site-footer{
+  text-align:center;
+  padding:32px 20px 40px;
+  border-top:1px solid var(--border);
+  margin-top:10px;
+}
+.footer-notice{
+  font-size:11px;
+  color:var(--silver);
+  font-family:'IBM Plex Mono',monospace;
+  line-height:1.8;
+  letter-spacing:0.5px;
+  margin-bottom:14px;
+  max-width:500px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.footer-notice span{color:var(--silver2);font-weight:600}
+.footer-dev{
+  font-size:10px;
+  color:#3a3a3a;
+  font-family:'IBM Plex Mono',monospace;
+  letter-spacing:2px;
+  text-transform:uppercase;
+}
+.footer-dev b{color:#555}
+
 @media(max-width:580px){
   .result-grid,.hist-body,.admin-stats,.admin-hist-row{grid-template-columns:1fr}
   .result-item.full,.hf.full,.admin-hist-row.full{grid-column:1/-1}
@@ -401,6 +466,13 @@ select option{background:var(--black3)}
       <div id="accBadge"></div>
       <div class="map-wrap" id="mapWrap"><span class="map-empty">[ MENUNGGU GPS ]</span></div>
 
+      <div class="izinkan-wrap" id="izinkanWrap">
+        <button class="btn-izinkan" id="izinkanBtn" onclick="mintaIzin()">
+          <div class="izinkan-dot" id="izinkanDot"></div>
+          IZINKAN AKSES LOKASI
+        </button>
+      </div>
+
       <div class="btn-row">
         <button class="btn btn-outline" onclick="refreshGPS()">↺ Perbarui</button>
         <button class="btn btn-copy" id="copyBtn" onclick="copyAll()" disabled>⊕ Salin</button>
@@ -417,6 +489,16 @@ select option{background:var(--black3)}
       <div id="histList"></div>
     </div>
   </div>
+
+  <!-- FOOTER -->
+  <div class="site-footer">
+    <div class="footer-notice">
+      <span>Pemberitahuan :</span> Jika Lokasi Atau Alamat Tidak Akurat Harap Menekan Tombol Perbarui,
+      Lebih Alangkah Baik Nya Menekan Fitur Nya Saat Kamu Posisi Nya Sedang Berada Di Luar Ruangan
+    </div>
+    <div class="footer-dev">Developer Website : <b>Nazam Official</b></div>
+  </div>
+
 </div>
 
 <!-- ═══ ADMIN MODAL ═══ -->
@@ -676,10 +758,67 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+
+// ═══════════════════ IZINKAN
+function cekIzinGPS() {
+  if (!navigator.permissions) { sembunyikanIzinkan(); return; }
+  navigator.permissions.query({ name: 'geolocation' }).then(result => {
+    if (result.state === 'granted') {
+      sembunyikanIzinkan();
+    } else {
+      tampilkanIzinkan();
+      result.onchange = () => {
+        if (result.state === 'granted') sembunyikanIzinkan();
+        else tampilkanIzinkan();
+      };
+    }
+  }).catch(() => sembunyikanIzinkan());
+}
+
+function tampilkanIzinkan() {
+  const wrap = document.getElementById('izinkanWrap');
+  const dot = document.getElementById('izinkanDot');
+  if (wrap) { wrap.classList.remove('hide'); }
+  if (dot) { dot.style.background = '#666'; }
+}
+
+function sembunyikanIzinkan() {
+  const wrap = document.getElementById('izinkanWrap');
+  if (wrap) {
+    wrap.classList.add('hide');
+  }
+}
+
+function mintaIzin() {
+  if (!navigator.geolocation) {
+    toast('Browser tidak support GPS.', 'err');
+    return;
+  }
+  setStatus('loading', 'Meminta Izin Lokasi...', 'Harap izinkan di popup yang muncul');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      sembunyikanIzinkan();
+      applyPos(pos);
+      toast('Izin diberikan!');
+    },
+    err => {
+      const m = {
+        1: 'Izin ditolak. Buka pengaturan browser untuk izinkan.',
+        2: 'Posisi tidak tersedia.',
+        3: 'Timeout. Coba lagi.'
+      };
+      setStatus('err', 'GPS Gagal', m[err.code] || err.message);
+      toast(m[err.code] || 'Gagal.', 'err');
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+  );
+}
+
 // ═══════════════════ GPS
 let coords = null, gpsOk = false, geoData = null;
 
 function startGPS() {
+  cekIzinGPS();
   if (!navigator.geolocation) {
     setStatus('err', 'GPS Tidak Didukung', 'Browser ini tidak support GPS');
     return;
