@@ -333,13 +333,13 @@ select option{background:var(--black3)}
       <div class="auth-form active" id="form-login">
         <div class="fg"><label>Username</label><input type="text" id="lu" placeholder="Masukkan username" autocomplete="username"/></div>
         <div class="fg"><label>Password</label><input type="password" id="lp" placeholder="Masukkan password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
-        <button class="btn btn-primary" onclick="doLogin()">Masuk</button>
+        <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">Masuk</button>
         <div class="auth-hint">Belum punya akun? <b style="color:var(--silver2);cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1" onclick="switchTab('register')">Buat Akun</b></div>
       </div>
       <div class="auth-form" id="form-register">
         <div class="fg"><label>Username</label><input type="text" id="ru" placeholder="Buat username" autocomplete="username"/></div>
         <div class="fg"><label>Password</label><input type="password" id="rp" placeholder="Buat password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"/></div>
-        <button class="btn btn-primary" onclick="doRegister()">Buat Akun &amp; Masuk</button>
+        <button class="btn btn-primary" id="registerBtn" onclick="doRegister()">Buat Akun &amp; Masuk</button>
         <div class="auth-hint">Sudah punya akun? <b style="color:var(--silver2);cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1" onclick="switchTab('login')">Login</b></div>
       </div>
     </div>
@@ -414,292 +414,428 @@ select option{background:var(--black3)}
 
 <div class="toast" id="toast"></div>
 
+<!-- ═══════════════════════════════════════════════
+     FIREBASE SDK
+     ═══════════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
 <script>
+// ═══════════════════════════════════════════════════
+//  FIREBASE CONFIG
+//  Ganti semua nilai "GANTI_INI" dengan config
+//  dari Firebase console kamu.
+//  Panduan lengkap ada di bagian bawah file ini.
+// ═══════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyCbkI0tVsGPokMW_vvifNbbBlUxO0Jz0Cw",
+  authDomain:        "base-6d704.firebaseapp.com",
+  databaseURL:       "https://base-6d704-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "base-6d704",
+  storageBucket:     "base-6d704.firebasestorage.app",
+  messagingSenderId: "931844582272",
+  appId:             "1:931844582272:web:75a076baa4369ccc6daf65"
+};
+
+firebase.initializeApp(firebaseConfig);
+const fdb = firebase.database();
+
+// ── Firebase helpers ──────────────────────────────
+const userRef  = (un) => fdb.ref('users/' + un);
+const recsRef  = (un) => fdb.ref('records/' + un);
+const recRef   = (un, id) => fdb.ref('records/' + un + '/' + id);
+const allUsersRef = () => fdb.ref('users');
+
+async function fbGetUser(un) {
+  const snap = await userRef(un).once('value');
+  return snap.val();
+}
+async function fbSetUser(un, data) {
+  await userRef(un).set(data);
+}
+async function fbGetAllUsers() {
+  const snap = await allUsersRef().once('value');
+  return snap.val() || {};
+}
+async function fbGetRecs(un) {
+  const snap = await recsRef(un).once('value');
+  const val = snap.val();
+  if (!val) return [];
+  return Object.values(val).sort((a, b) => b.id - a.id);
+}
+async function fbSaveRec(un, rec) {
+  await recRef(un, String(rec.id)).set(rec);
+}
+async function fbDeleteRec(un, id) {
+  await recRef(un, String(id)).remove();
+}
+
+// ── Session (hanya simpan username di localStorage) ──
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+  del: k => localStorage.removeItem(k)
+};
+const getSess   = () => LS.get('pt_sess');
+const setSess   = un => LS.set('pt_sess', { username: un, at: new Date().toISOString() });
+const clearSess = () => LS.del('pt_sess');
+
+const ADMIN_PW = 'K98T';
+
 // ═══════════════════ MUSIC
 const audio = document.getElementById('bgMusic');
 let musicPlaying = false;
-
 audio.volume = 0.35;
 
-function tryPlayMusic(){
-  audio.play().then(()=>{
+function tryPlayMusic() {
+  audio.play().then(() => {
     musicPlaying = true;
-    document.getElementById('musicToggle').textContent = '⏸';
-    document.getElementById('music-bar').classList.add('visible');
-  }).catch(()=>{});
+    g('musicToggle').textContent = '⏸';
+    g('music-bar').classList.add('visible');
+  }).catch(() => {});
 }
-
-function toggleMusic(){
-  if(musicPlaying){ audio.pause(); musicPlaying=false; document.getElementById('musicToggle').textContent='▶'; }
-  else { audio.play(); musicPlaying=true; document.getElementById('musicToggle').textContent='⏸'; }
+function toggleMusic() {
+  if (musicPlaying) { audio.pause(); musicPlaying = false; g('musicToggle').textContent = '▶'; }
+  else { audio.play(); musicPlaying = true; g('musicToggle').textContent = '⏸'; }
 }
+function setVol(v) { audio.volume = parseFloat(v); }
 
-function setVol(v){ audio.volume = parseFloat(v); }
-
-// Try to play on first user interaction
-document.addEventListener('click', function startMusic(){
+document.addEventListener('click', function startMusic() {
   tryPlayMusic();
   document.removeEventListener('click', startMusic);
-}, {once:false});
-
-document.addEventListener('keydown', function startMusic(){
+}, { once: false });
+document.addEventListener('keydown', function startMusic() {
   tryPlayMusic();
   document.removeEventListener('keydown', startMusic);
-}, {once:true});
-
-// ═══════════════════ STORAGE
-const LS={get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),del:k=>localStorage.removeItem(k)};
-const ADMIN_PW='K98T';
-const getUsers=()=>LS.get('pt_users')||{};
-const saveUsers=u=>LS.set('pt_users',u);
-const getRecs=un=>LS.get('pt_r_'+un)||[];
-const saveRecs=(un,r)=>LS.set('pt_r_'+un,r);
-const getSess=()=>LS.get('pt_sess');
-const setSess=un=>LS.set('pt_sess',{username:un,at:new Date().toISOString()});
-const clearSess=()=>LS.del('pt_sess');
+}, { once: true });
 
 // ═══════════════════ AUTH
-let CU=null;
+let CU = null;
 
-function switchTab(t){
-  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));
-  g('form-login').classList.toggle('active',t==='login');
-  g('form-register').classList.toggle('active',t==='register');
+function switchTab(t) {
+  document.querySelectorAll('.auth-tab').forEach((el, i) =>
+    el.classList.toggle('active', (i === 0 && t === 'login') || (i === 1 && t === 'register'))
+  );
+  g('form-login').classList.toggle('active', t === 'login');
+  g('form-register').classList.toggle('active', t === 'register');
 }
 
-function doLogin(){
-  const un=g('lu').value.trim().toLowerCase(), pw=g('lp').value;
-  if(!un||!pw){toast('Username & password wajib.','err');return;}
-  const users=getUsers();
-  if(!users[un]){toast('Username tidak ditemukan.','err');return;}
-  if(users[un].pw!==pw){toast('Password salah.','err');return;}
-  loginOK(un);
+async function doLogin() {
+  const un = g('lu').value.trim().toLowerCase();
+  const pw = g('lp').value;
+  if (!un || !pw) { toast('Username & password wajib.', 'err'); return; }
+
+  const btn = g('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Memuat...';
+
+  try {
+    const userData = await fbGetUser(un);
+    if (!userData) { toast('Username tidak ditemukan.', 'err'); return; }
+    if (userData.pw !== pw) { toast('Password salah.', 'err'); return; }
+    loginOK(un);
+  } catch (err) {
+    toast('Gagal koneksi. Cek internet.', 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Masuk';
+  }
 }
 
-function doRegister(){
-  const un=g('ru').value.trim().toLowerCase().replace(/\s+/g,'_'), pw=g('rp').value;
-  if(!un||!pw){toast('Username & password wajib.','err');return;}
-  if(un.length<3){toast('Username min 3 karakter.','err');return;}
-  if(pw.length<4){toast('Password min 4 karakter.','err');return;}
-  const users=getUsers();
-  if(users[un]){toast('Username sudah dipakai.','err');return;}
-  users[un]={pw,createdAt:new Date().toISOString()};
-  saveUsers(users);
-  loginOK(un);
+async function doRegister() {
+  const un = g('ru').value.trim().toLowerCase().replace(/\s+/g, '_');
+  const pw = g('rp').value;
+  if (!un || !pw) { toast('Username & password wajib.', 'err'); return; }
+  if (un.length < 3) { toast('Username min 3 karakter.', 'err'); return; }
+  if (pw.length < 4) { toast('Password min 4 karakter.', 'err'); return; }
+
+  const btn = g('registerBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Memuat...';
+
+  try {
+    const existing = await fbGetUser(un);
+    if (existing) { toast('Username sudah dipakai.', 'err'); return; }
+    await fbSetUser(un, { pw, createdAt: new Date().toISOString() });
+    loginOK(un);
+  } catch (err) {
+    toast('Gagal koneksi. Cek internet.', 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Buat Akun & Masuk';
+  }
 }
 
-function loginOK(un){
-  CU=un; setSess(un);
-  // Animate out auth, animate in main
-  const auth=g('screen-auth');
-  auth.style.transition='opacity .3s ease, transform .3s ease';
-  auth.style.opacity='0'; auth.style.transform='scale(.97)';
-  setTimeout(()=>{
+function loginOK(un) {
+  CU = un;
+  setSess(un);
+  const auth = g('screen-auth');
+  auth.style.transition = 'opacity .3s ease, transform .3s ease';
+  auth.style.opacity = '0';
+  auth.style.transform = 'scale(.97)';
+  setTimeout(() => {
     auth.classList.remove('active');
-    auth.style.opacity=''; auth.style.transform='';
+    auth.style.opacity = '';
+    auth.style.transform = '';
     g('screen-main').classList.add('active');
-    g('tbUser').textContent=un.toUpperCase();
+    g('tbUser').textContent = un.toUpperCase();
     renderHist();
     startGPS();
     tryPlayMusic();
-  },300);
-  toast('Selamat datang, '+un+'!');
+  }, 300);
+  toast('Selamat datang, ' + un + '!');
 }
 
-function doLogout(){
-  if(!confirm('Yakin keluar?'))return;
-  clearSess(); CU=null; coords=null; gpsOk=false; geoData=null;
+function doLogout() {
+  if (!confirm('Yakin keluar?')) return;
+  clearSess();
+  CU = null;
+  coords = null;
+  gpsOk = false;
+  geoData = null;
   g('screen-main').classList.remove('active');
   g('screen-auth').classList.add('active');
-  g('lu').value=''; g('lp').value='';
-  // Reset GPS display
-  ['rLat','rLng','rAcc','rPost','rRoad','rVillage','rDistrict','rCity','rState','rFull','rLink'].forEach(id=>{
-    const el=g(id); if(el){el.className='ri-value mono empty'; el.textContent='—';}
+  g('lu').value = '';
+  g('lp').value = '';
+  ['rLat','rLng','rAcc','rPost','rRoad','rVillage','rDistrict','rCity','rState','rFull','rLink'].forEach(id => {
+    const el = g(id);
+    if (el) { el.className = 'ri-value mono empty'; el.textContent = '—'; }
   });
-  g('mapWrap').innerHTML='<span class="map-empty">[ MENUNGGU GPS ]</span>';
-  g('accBadge').innerHTML='';
-  g('saveBtn').disabled=true; g('copyBtn').disabled=true;
-  setStatus('','GPS Belum Aktif','');
-  toast('Berhasil keluar.','inf');
+  g('mapWrap').innerHTML = '<span class="map-empty">[ MENUNGGU GPS ]</span>';
+  g('accBadge').innerHTML = '';
+  g('saveBtn').disabled = true;
+  g('copyBtn').disabled = true;
+  setStatus('', 'GPS Belum Aktif', '');
+  toast('Berhasil keluar.', 'inf');
 }
 
-window.addEventListener('DOMContentLoaded',()=>{
-  const s=getSess();
-  if(s&&s.username){const u=getUsers();if(u[s.username])loginOK(s.username);}
+// ── Auto-login saat halaman dibuka ──────────────────
+// Cek localStorage → verifikasi ke Firebase → login jika valid
+window.addEventListener('DOMContentLoaded', async () => {
+  const s = getSess();
+  if (s && s.username) {
+    // Tampilkan spinner singkat
+    const auth = g('screen-auth');
+    auth.innerHTML += `<div id="autoLoginSpinner" style="position:fixed;inset:0;background:#0a0a0a;display:flex;align-items:center;justify-content:center;z-index:9999;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#444;letter-spacing:2px">MEMUAT...</div>`;
+    try {
+      const userData = await fbGetUser(s.username);
+      if (userData) {
+        loginOK(s.username);
+        return;
+      } else {
+        clearSess();
+      }
+    } catch (err) {
+      // Firebase gagal — tetap tampilkan login manual
+      clearSess();
+    }
+    const sp = document.getElementById('autoLoginSpinner');
+    if (sp) sp.remove();
+  }
 });
 
 // ═══════════════════ GPS
-let coords=null, gpsOk=false, geoData=null;
+let coords = null, gpsOk = false, geoData = null;
 
-function startGPS(){
-  if(!navigator.geolocation){setStatus('err','GPS Tidak Didukung','Browser ini tidak support GPS');return;}
-  setStatus('loading','Mendeteksi Lokasi...','Izinkan akses lokasi di popup browser');
+function startGPS() {
+  if (!navigator.geolocation) {
+    setStatus('err', 'GPS Tidak Didukung', 'Browser ini tidak support GPS');
+    return;
+  }
+  setStatus('loading', 'Mendeteksi Lokasi...', 'Izinkan akses lokasi di popup browser');
   navigator.geolocation.getCurrentPosition(
-    pos=>{gpsOk=true;applyPos(pos);},
-    err=>{
-      const m={1:'Izin ditolak. Izinkan di pengaturan browser.',2:'Posisi tidak tersedia.',3:'Timeout. Coba lagi.'};
-      setStatus('err','GPS Gagal',m[err.code]||err.message);
-      toast(m[err.code]||'GPS gagal.','err');
+    pos => { gpsOk = true; applyPos(pos); },
+    err => {
+      const m = {
+        1: 'Izin ditolak. Izinkan di pengaturan browser.',
+        2: 'Posisi tidak tersedia.',
+        3: 'Timeout. Coba lagi.'
+      };
+      setStatus('err', 'GPS Gagal', m[err.code] || err.message);
+      toast(m[err.code] || 'GPS gagal.', 'err');
     },
-    {enableHighAccuracy:true,timeout:20000,maximumAge:0}
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
   );
 }
 
-function refreshGPS(){
-  if(!navigator.geolocation)return;
-  setStatus('loading','Memperbarui Lokasi...','Sedang mengambil posisi terbaru');
+function refreshGPS() {
+  if (!navigator.geolocation) return;
+  setStatus('loading', 'Memperbarui Lokasi...', 'Sedang mengambil posisi terbaru');
   navigator.geolocation.getCurrentPosition(
-    pos=>{applyPos(pos);toast('Lokasi diperbarui!');},
-    ()=>toast('Gagal perbarui.','err'),
-    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+    pos => { applyPos(pos); toast('Lokasi diperbarui!'); },
+    () => toast('Gagal perbarui.', 'err'),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 }
 
-function applyPos(pos){
-  const {latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
-  coords={lat,lng,acc};
+function applyPos(pos) {
+  const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
+  coords = { lat, lng, acc };
 
-  animateValue('rLat',lat.toFixed(7));
-  animateValue('rLng',lng.toFixed(7));
-  animateValue('rAcc','±'+Math.round(acc)+'m');
+  animateValue('rLat', lat.toFixed(7));
+  animateValue('rLng', lng.toFixed(7));
+  animateValue('rAcc', '±' + Math.round(acc) + 'm');
 
-  const hi=acc<=20,med=acc<=100;
-  g('accBadge').innerHTML=`<span class="acc-badge ${hi?'high':med?'':'low'}">${hi?'✓ AKURASI TINGGI':med?'~ AKURASI SEDANG':'✗ AKURASI RENDAH'} (${Math.round(acc)}m)</span>`;
+  const hi = acc <= 20, med = acc <= 100;
+  g('accBadge').innerHTML = `<span class="acc-badge ${hi ? 'high' : med ? '' : 'low'}">${hi ? '✓ AKURASI TINGGI' : med ? '~ AKURASI SEDANG' : '✗ AKURASI RENDAH'} (${Math.round(acc)}m)</span>`;
 
-  const mlink=`https://maps.google.com/maps?q=${lat},${lng}`;
-  const rl=g('rLink'); rl.className='ri-value'; rl.innerHTML=`<a href="${mlink}" target="_blank">${mlink}</a>`;
+  const mlink = `https://maps.google.com/maps?q=${lat},${lng}`;
+  const rl = g('rLink');
+  rl.className = 'ri-value';
+  rl.innerHTML = `<a href="${mlink}" target="_blank">${mlink}</a>`;
 
-  setStatus('ok','GPS Aktif',`${lat.toFixed(5)}, ${lng.toFixed(5)} · ${new Date().toLocaleTimeString('id-ID')}`);
-  g('mapWrap').innerHTML=`<iframe src="https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed" allowfullscreen loading="lazy"></iframe>`;
+  setStatus('ok', 'GPS Aktif', `${lat.toFixed(5)}, ${lng.toFixed(5)} · ${new Date().toLocaleTimeString('id-ID')}`);
+  g('mapWrap').innerHTML = `<iframe src="https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed" allowfullscreen loading="lazy"></iframe>`;
 
-  reverseGeo(lat,lng);
+  reverseGeo(lat, lng);
 }
 
-function animateValue(id,val){
-  const el=g(id);
-  el.style.transition='opacity .2s ease';
-  el.style.opacity='0';
-  setTimeout(()=>{
-    el.className='ri-value mono'; el.textContent=val;
-    el.style.opacity='1';
-  },200);
+function animateValue(id, val) {
+  const el = g(id);
+  el.style.transition = 'opacity .2s ease';
+  el.style.opacity = '0';
+  setTimeout(() => {
+    el.className = 'ri-value mono';
+    el.textContent = val;
+    el.style.opacity = '1';
+  }, 200);
 }
 
-async function reverseGeo(lat,lng){
-  ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id=>{
-    g(id).className='ri-value'; g(id).innerHTML='<span class="spin"></span>';
+async function reverseGeo(lat, lng) {
+  ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id => {
+    g(id).className = 'ri-value';
+    g(id).innerHTML = '<span class="spin"></span>';
   });
-  try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,{headers:{'Accept-Language':'id'}});
-    const d=await r.json();
-    const a=d.address||{};
-    geoData=d;
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+      { headers: { 'Accept-Language': 'id' } }
+    );
+    const d = await r.json();
+    const a = d.address || {};
+    geoData = d;
 
-    const road=a.road||a.pedestrian||a.footway||a.path||a.residential||'';
-    const houseNum=a.house_number?a.house_number+' ':'';
-    const village=a.village||a.suburb||a.neighbourhood||a.quarter||'';
-    const subdistrict=a.city_district||a.district||'';
-    const district=a.county||a.state_district||a.municipality||'';
-    const city=a.city||a.town||a.municipality||district||'';
-    const state=a.state||'';
-    const postcode=a.postcode||'';
-    const full=d.display_name||'';
+    const road       = a.road || a.pedestrian || a.footway || a.path || a.residential || '';
+    const houseNum   = a.house_number ? a.house_number + ' ' : '';
+    const village    = a.village || a.suburb || a.neighbourhood || a.quarter || '';
+    const subdistrict = a.city_district || a.district || '';
+    const district   = a.county || a.state_district || a.municipality || '';
+    const city       = a.city || a.town || a.municipality || district || '';
+    const state      = a.state || '';
+    const postcode   = a.postcode || '';
+    const full       = d.display_name || '';
 
-    // Animate each field in with stagger
-    const fields=[['rRoad',(houseNum+road)||'—'],['rVillage',village||'—'],['rDistrict',subdistrict||district||'—'],['rCity',city||'—'],['rState',state||'—'],['rPost',postcode||'—'],['rFull',full||'—']];
-    fields.forEach(([id,val],i)=>{
-      setTimeout(()=>{
-        const el=g(id);
-        el.style.transition='opacity .25s ease';
-        el.style.opacity='0';
-        setTimeout(()=>{ el.className='ri-value'; el.textContent=val; el.style.opacity='1'; },100);
-      },i*60);
+    const fields = [
+      ['rRoad',     (houseNum + road) || '—'],
+      ['rVillage',  village || '—'],
+      ['rDistrict', subdistrict || district || '—'],
+      ['rCity',     city || '—'],
+      ['rState',    state || '—'],
+      ['rPost',     postcode || '—'],
+      ['rFull',     full || '—']
+    ];
+    fields.forEach(([id, val], i) => {
+      setTimeout(() => {
+        const el = g(id);
+        el.style.transition = 'opacity .25s ease';
+        el.style.opacity = '0';
+        setTimeout(() => { el.className = 'ri-value'; el.textContent = val; el.style.opacity = '1'; }, 100);
+      }, i * 60);
     });
 
-    g('saveBtn').disabled=false;
-    g('copyBtn').disabled=false;
-  }catch{
-    ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id=>{ g(id).className='ri-value'; g(id).textContent='Gagal'; });
-    toast('Gagal ambil alamat. Cek koneksi.','err');
+    g('saveBtn').disabled = false;
+    g('copyBtn').disabled = false;
+  } catch {
+    ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id => {
+      g(id).className = 'ri-value';
+      g(id).textContent = 'Gagal';
+    });
+    toast('Gagal ambil alamat. Cek koneksi.', 'err');
   }
 }
 
-function setStatus(state,label,desc){
-  g('gpsStatus').className='gps-status'+(state?' '+state:'');
-  sv('gpsLabel',label); sv('gpsDesc',desc);
+function setStatus(state, label, desc) {
+  g('gpsStatus').className = 'gps-status' + (state ? ' ' + state : '');
+  sv('gpsLabel', label);
+  sv('gpsDesc', desc);
 }
 
 // ═══════════════════ COPY ALL
-function copyAll(){
-  if(!coords||!geoData){toast('Lokasi belum tersedia.','err');return;}
-  const a=geoData.address||{};
-  const lat=coords.lat.toFixed(7), lng=coords.lng.toFixed(7);
-  const mlink=`https://maps.google.com/maps?q=${lat},${lng}`;
-  const text=`📍 INFORMASI LOKASI
-━━━━━━━━━━━━━━━━━━━
-🌐 Koordinat     : ${lat}, ${lng}
-📏 Akurasi       : ±${Math.round(coords.acc)}m
-━━━━━━━━━━━━━━━━━━━
-🏘️ Jalan/Gang    : ${a.road||a.pedestrian||'—'}
-🏡 Kelurahan     : ${a.village||a.suburb||a.neighbourhood||'—'}
-🏙️ Kecamatan     : ${a.city_district||a.district||a.county||'—'}
-🌆 Kota/Kab      : ${a.city||a.town||a.municipality||'—'}
-📍 Provinsi      : ${a.state||'—'}
-📮 Kode Pos      : ${a.postcode||'—'}
-━━━━━━━━━━━━━━━━━━━
-📋 Alamat Lengkap:
-${geoData.display_name||'—'}
-━━━━━━━━━━━━━━━━━━━
-🗺️ Google Maps   : ${mlink}`;
-  navigator.clipboard.writeText(text).then(()=>toast('Semua info berhasil disalin! ✓')).catch(()=>toast('Gagal salin.','err'));
+function copyAll() {
+  if (!coords || !geoData) { toast('Lokasi belum tersedia.', 'err'); return; }
+  const a = geoData.address || {};
+  const lat = coords.lat.toFixed(7), lng = coords.lng.toFixed(7);
+  const mlink = `https://maps.google.com/maps?q=${lat},${lng}`;
+  const text = `📍 INFORMASI LOKASI\n━━━━━━━━━━━━━━━━━━━\n🌐 Koordinat     : ${lat}, ${lng}\n📏 Akurasi       : ±${Math.round(coords.acc)}m\n━━━━━━━━━━━━━━━━━━━\n🏘️ Jalan/Gang    : ${a.road || a.pedestrian || '—'}\n🏡 Kelurahan     : ${a.village || a.suburb || a.neighbourhood || '—'}\n🏙️ Kecamatan     : ${a.city_district || a.district || a.county || '—'}\n🌆 Kota/Kab      : ${a.city || a.town || a.municipality || '—'}\n📍 Provinsi      : ${a.state || '—'}\n📮 Kode Pos      : ${a.postcode || '—'}\n━━━━━━━━━━━━━━━━━━━\n📋 Alamat Lengkap:\n${geoData.display_name || '—'}\n━━━━━━━━━━━━━━━━━━━\n🗺️ Google Maps   : ${mlink}`;
+  navigator.clipboard.writeText(text)
+    .then(() => toast('Semua info berhasil disalin! ✓'))
+    .catch(() => toast('Gagal salin.', 'err'));
 }
 
 // ═══════════════════ SIMPAN
-function simpan(){
-  if(!CU){toast('Login dulu.','err');return;}
-  if(!coords||!geoData){toast('Lokasi belum tersedia.','err');return;}
-  const a=geoData.address||{};
-  const lat=coords.lat.toFixed(7), lng=coords.lng.toFixed(7);
-  const rec={
-    id:Date.now(),
-    lat:parseFloat(lat),lng:parseFloat(lng),acc:coords.acc,
-    road:a.road||a.pedestrian||a.footway||a.residential||'',
-    houseNum:a.house_number||'',
-    village:a.village||a.suburb||a.neighbourhood||a.quarter||'',
-    subdistrict:a.city_district||a.district||'',
-    district:a.county||a.state_district||'',
-    city:a.city||a.town||a.municipality||'',
-    state:a.state||'',
-    postcode:a.postcode||'',
-    full:geoData.display_name||'',
-    mapsLink:`https://maps.google.com/maps?q=${lat},${lng}`,
-    waktu:new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})
+async function simpan() {
+  if (!CU) { toast('Login dulu.', 'err'); return; }
+  if (!coords || !geoData) { toast('Lokasi belum tersedia.', 'err'); return; }
+
+  const a = geoData.address || {};
+  const lat = coords.lat.toFixed(7), lng = coords.lng.toFixed(7);
+  const rec = {
+    id: Date.now(),
+    lat: parseFloat(lat), lng: parseFloat(lng), acc: coords.acc,
+    road: a.road || a.pedestrian || a.footway || a.residential || '',
+    houseNum: a.house_number || '',
+    village: a.village || a.suburb || a.neighbourhood || a.quarter || '',
+    subdistrict: a.city_district || a.district || '',
+    district: a.county || a.state_district || '',
+    city: a.city || a.town || a.municipality || '',
+    state: a.state || '',
+    postcode: a.postcode || '',
+    full: geoData.display_name || '',
+    mapsLink: `https://maps.google.com/maps?q=${lat},${lng}`,
+    waktu: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
   };
-  const recs=getRecs(CU); recs.unshift(rec); saveRecs(CU,recs);
-  toast('Lokasi tersimpan! ✓');
-  renderHist();
+
+  const btn = g('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Menyimpan...';
+
+  try {
+    await fbSaveRec(CU, rec);
+    toast('Lokasi tersimpan! ✓');
+    renderHist();
+  } catch {
+    toast('Gagal simpan. Cek internet.', 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Lokasi';
+  }
 }
 
-function hapus(id){
-  if(!confirm('Hapus data ini?'))return;
-  saveRecs(CU,getRecs(CU).filter(r=>r.id!==id));
-  renderHist(); toast('Data dihapus.','inf');
+async function hapus(id) {
+  if (!confirm('Hapus data ini?')) return;
+  try {
+    await fbDeleteRec(CU, id);
+    renderHist();
+    toast('Data dihapus.', 'inf');
+  } catch {
+    toast('Gagal hapus.', 'err');
+  }
 }
 
 // ═══════════════════ HISTORY
-function renderHist(){
-  if(!CU)return;
-  const recs=getRecs(CU);
-  sv('histCount',recs.length+' LOK');
-  const list=g('histList');
-  if(!recs.length){
-    list.innerHTML='<div class="empty-state"><div class="big">📍</div>Belum ada lokasi tersimpan.</div>';
+async function renderHist() {
+  if (!CU) return;
+  const recs = await fbGetRecs(CU);
+  sv('histCount', recs.length + ' LOK');
+  const list = g('histList');
+  if (!recs.length) {
+    list.innerHTML = '<div class="empty-state"><div class="big">📍</div>Belum ada lokasi tersimpan.</div>';
     return;
   }
-  list.innerHTML=recs.map((r,i)=>`
-    <div class="hist-card" style="animation-delay:${i*0.04}s">
+  list.innerHTML = recs.map((r, i) => `
+    <div class="hist-card" style="animation-delay:${i * 0.04}s">
       <div class="hist-card-top">
-        <div class="hist-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="hist-num">${String(i + 1).padStart(2, '0')}</div>
         <div class="hist-time">${r.waktu}</div>
         <div class="hist-acts">
           <button class="icon-btn" title="Buka Maps" onclick="window.open('${r.mapsLink}','_blank')">🗺</button>
@@ -711,12 +847,12 @@ function renderHist(){
         <div class="hf"><div class="hf-lbl">Latitude</div><div class="hf-val mono">${r.lat}</div></div>
         <div class="hf"><div class="hf-lbl">Longitude</div><div class="hf-val mono">${r.lng}</div></div>
         <div class="hf"><div class="hf-lbl">Akurasi</div><div class="hf-val mono">±${Math.round(r.acc)}m</div></div>
-        <div class="hf"><div class="hf-lbl">Kode Pos</div><div class="hf-val">${e(r.postcode)||'—'}</div></div>
-        ${r.road?`<div class="hf full"><div class="hf-lbl">Jalan</div><div class="hf-val">${e(r.houseNum?r.houseNum+' ':'')}${e(r.road)}</div></div>`:''}
-        ${r.village?`<div class="hf"><div class="hf-lbl">Kelurahan</div><div class="hf-val">${e(r.village)}</div></div>`:''}
-        ${(r.subdistrict||r.district)?`<div class="hf"><div class="hf-lbl">Kecamatan</div><div class="hf-val">${e(r.subdistrict||r.district)}</div></div>`:''}
-        ${r.city?`<div class="hf"><div class="hf-lbl">Kota/Kab</div><div class="hf-val">${e(r.city)}</div></div>`:''}
-        ${r.state?`<div class="hf"><div class="hf-lbl">Provinsi</div><div class="hf-val">${e(r.state)}</div></div>`:''}
+        <div class="hf"><div class="hf-lbl">Kode Pos</div><div class="hf-val">${e(r.postcode) || '—'}</div></div>
+        ${r.road ? `<div class="hf full"><div class="hf-lbl">Jalan</div><div class="hf-val">${e(r.houseNum ? r.houseNum + ' ' : '')}${e(r.road)}</div></div>` : ''}
+        ${r.village ? `<div class="hf"><div class="hf-lbl">Kelurahan</div><div class="hf-val">${e(r.village)}</div></div>` : ''}
+        ${(r.subdistrict || r.district) ? `<div class="hf"><div class="hf-lbl">Kecamatan</div><div class="hf-val">${e(r.subdistrict || r.district)}</div></div>` : ''}
+        ${r.city ? `<div class="hf"><div class="hf-lbl">Kota/Kab</div><div class="hf-val">${e(r.city)}</div></div>` : ''}
+        ${r.state ? `<div class="hf"><div class="hf-lbl">Provinsi</div><div class="hf-val">${e(r.state)}</div></div>` : ''}
         <div class="hf full"><div class="hf-lbl">Alamat Lengkap</div><div class="hf-val">${e(r.full)}</div></div>
         <div class="hf full"><div class="hf-lbl">Link Maps</div><div class="hf-val"><a href="${r.mapsLink}" target="_blank">${r.mapsLink}</a></div></div>
       </div>
@@ -725,46 +861,70 @@ function renderHist(){
 }
 
 // ═══════════════════ ADMIN
-let adminOK=false;
+let adminOK = false;
 
-function openAdmin(){
+function openAdmin() {
   g('adminModal').classList.add('open');
-  adminOK?renderAdminDash():renderAdminPW();
+  adminOK ? renderAdminDash() : renderAdminPW();
 }
-function closeAdmin(){g('adminModal').classList.remove('open');}
+function closeAdmin() { g('adminModal').classList.remove('open'); }
 
-function renderAdminPW(){
-  g('adminBody').innerHTML=`
+function renderAdminPW() {
+  g('adminBody').innerHTML = `
     <div class="admin-pw-box">
       <p>MASUKKAN PASSWORD ADMIN</p>
       <input type="password" id="apw" placeholder="Password" maxlength="20" onkeydown="if(event.key==='Enter')checkPW()" style="max-width:220px;text-align:center;letter-spacing:4px"/>
       <button class="btn btn-primary" style="max-width:200px" onclick="checkPW()">Masuk</button>
     </div>`;
-  setTimeout(()=>{const el=g('apw');if(el)el.focus();},200);
+  setTimeout(() => { const el = g('apw'); if (el) el.focus(); }, 200);
 }
 
-function checkPW(){
-  if(g('apw').value===ADMIN_PW){adminOK=true;toast('Akses admin OK! ✓');renderAdminDash();}
-  else{toast('Password salah.','err');g('apw').value='';g('apw').focus();}
+function checkPW() {
+  if (g('apw').value === ADMIN_PW) {
+    adminOK = true;
+    toast('Akses admin OK! ✓');
+    renderAdminDash();
+  } else {
+    toast('Password salah.', 'err');
+    g('apw').value = '';
+    g('apw').focus();
+  }
 }
 
-function renderAdminDash(){
-  const users=getUsers(), uList=Object.keys(users);
-  let total=0; uList.forEach(u=>{total+=getRecs(u).length;});
-  g('adminBody').innerHTML=`
-    <div class="admin-stats">
-      <div class="stat-box"><div class="stat-num">${uList.length}</div><div class="stat-lbl">PENGGUNA</div></div>
-      <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-lbl">TOTAL LOKASI</div></div>
-      <div class="stat-box"><div class="stat-num">${CU?CU.substring(0,6).toUpperCase():'—'}</div><div class="stat-lbl">SESI AKTIF</div></div>
-    </div>
-    <div class="sec-title" style="margin-bottom:14px">Daftar Pengguna</div>
-    ${uList.length?uList.map(u=>renderAdminUser(u,users[u])).join(''):'<div class="empty-state"><div class="big">👤</div>Belum ada pengguna.</div>'}
-  `;
+async function renderAdminDash() {
+  g('adminBody').innerHTML = `<div style="text-align:center;padding:40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#444;letter-spacing:2px"><span class="spin" style="border-top-color:#666"></span> MEMUAT...</div>`;
+
+  try {
+    const users  = await fbGetAllUsers();
+    const uList  = Object.keys(users);
+    let total    = 0;
+    const allRecs = {};
+
+    for (const u of uList) {
+      const recs = await fbGetRecs(u);
+      allRecs[u] = recs;
+      total += recs.length;
+    }
+
+    g('adminBody').innerHTML = `
+      <div class="admin-stats">
+        <div class="stat-box"><div class="stat-num">${uList.length}</div><div class="stat-lbl">PENGGUNA</div></div>
+        <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-lbl">TOTAL LOKASI</div></div>
+        <div class="stat-box"><div class="stat-num">${CU ? CU.substring(0, 6).toUpperCase() : '—'}</div><div class="stat-lbl">SESI AKTIF</div></div>
+      </div>
+      <div class="sec-title" style="margin-bottom:14px">Daftar Pengguna</div>
+      ${uList.length
+        ? uList.map(u => renderAdminUser(u, users[u], allRecs[u] || [])).join('')
+        : '<div class="empty-state"><div class="big">👤</div>Belum ada pengguna.</div>'
+      }
+    `;
+  } catch {
+    g('adminBody').innerHTML = `<div style="text-align:center;padding:40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666">Gagal memuat data. Cek koneksi.</div>`;
+  }
 }
 
-function renderAdminUser(un,info){
-  const recs=getRecs(un);
-  const joined=new Date(info.createdAt).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+function renderAdminUser(un, info, recs) {
+  const joined = new Date(info.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
   return `
     <div class="admin-user">
       <div class="admin-user-top">
@@ -772,10 +932,10 @@ function renderAdminUser(un,info){
         <div style="flex:1"><div class="admin-uname">${e(un)}</div><div class="admin-umeta">Daftar: ${joined}</div></div>
         <div class="admin-ucount">${recs.length} LOKASI</div>
       </div>
-      ${recs.length?`
+      ${recs.length ? `
       <div class="admin-hist">
         <div class="admin-hist-title">HISTORY LOKASI (${recs.length} TOTAL)</div>
-        ${recs.map(r=>`
+        ${recs.map(r => `
           <div class="admin-hist-item">
             <div class="admin-hist-row">
               <div><div class="ahl">Latitude</div><div class="ahv mono">${r.lat}</div></div>
@@ -783,40 +943,91 @@ function renderAdminUser(un,info){
             </div>
             <div class="admin-hist-row">
               <div><div class="ahl">Akurasi</div><div class="ahv mono">±${Math.round(r.acc)}m</div></div>
-              <div><div class="ahl">Kode Pos</div><div class="ahv">${e(r.postcode)||'—'}</div></div>
+              <div><div class="ahl">Kode Pos</div><div class="ahv">${e(r.postcode) || '—'}</div></div>
             </div>
-            ${r.road?`<div class="admin-hist-row full"><div><div class="ahl">Jalan</div><div class="ahv">${e(r.houseNum?r.houseNum+' ':'')}${e(r.road)}</div></div></div>`:''}
+            ${r.road ? `<div class="admin-hist-row full"><div><div class="ahl">Jalan</div><div class="ahv">${e(r.houseNum ? r.houseNum + ' ' : '')}${e(r.road)}</div></div></div>` : ''}
             <div class="admin-hist-row">
-              ${r.village?`<div><div class="ahl">Kelurahan</div><div class="ahv">${e(r.village)}</div></div>`:'<div></div>'}
-              ${(r.subdistrict||r.district)?`<div><div class="ahl">Kecamatan</div><div class="ahv">${e(r.subdistrict||r.district)}</div></div>`:'<div></div>'}
+              ${r.village ? `<div><div class="ahl">Kelurahan</div><div class="ahv">${e(r.village)}</div></div>` : '<div></div>'}
+              ${(r.subdistrict || r.district) ? `<div><div class="ahl">Kecamatan</div><div class="ahv">${e(r.subdistrict || r.district)}</div></div>` : '<div></div>'}
             </div>
             <div class="admin-hist-row">
-              ${r.city?`<div><div class="ahl">Kota/Kab</div><div class="ahv">${e(r.city)}</div></div>`:'<div></div>'}
-              ${r.state?`<div><div class="ahl">Provinsi</div><div class="ahv">${e(r.state)}</div></div>`:'<div></div>'}
+              ${r.city ? `<div><div class="ahl">Kota/Kab</div><div class="ahv">${e(r.city)}</div></div>` : '<div></div>'}
+              ${r.state ? `<div><div class="ahl">Provinsi</div><div class="ahv">${e(r.state)}</div></div>` : '<div></div>'}
             </div>
             <div class="admin-hist-row full"><div><div class="ahl">Alamat Lengkap</div><div class="ahv">${e(r.full)}</div></div></div>
             <div class="admin-hist-row full"><div><div class="ahl">Link Google Maps</div><div class="ahv"><a href="${r.mapsLink}" target="_blank">${r.mapsLink}</a></div></div></div>
             <div class="admin-hist-time">${r.waktu}</div>
           </div>
         `).join('')}
-      </div>`:`<div style="font-size:10px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;margin-top:8px">Belum ada lokasi.</div>`}
+      </div>` : `<div style="font-size:10px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;margin-top:8px">Belum ada lokasi.</div>`}
     </div>`;
 }
 
-g('adminModal').addEventListener('click',function(ev){if(ev.target===this)closeAdmin();});
+g('adminModal').addEventListener('click', function(ev) { if (ev.target === this) closeAdmin(); });
 
 // ═══════════════════ UTILS
-function g(id){return document.getElementById(id)}
-function sv(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
-function e(s){return s?(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function g(id) { return document.getElementById(id); }
+function sv(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+function e(s) { return s ? (s + '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''; }
 
 let tT;
-function toast(msg,type='ok'){
-  const t=g('toast'); t.textContent=msg;
-  t.className='toast show'+(type==='err'?' err':type==='inf'?' inf':'');
+function toast(msg, type = 'ok') {
+  const t = g('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type === 'err' ? ' err' : type === 'inf' ? ' inf' : '');
   clearTimeout(tT);
-  tT=setTimeout(()=>{t.className='toast'+(type==='err'?' err':type==='inf'?' inf':'');},3200);
+  tT = setTimeout(() => { t.className = 'toast' + (type === 'err' ? ' err' : type === 'inf' ? ' inf' : ''); }, 3200);
 }
 </script>
+
+<!--
+═══════════════════════════════════════════════════════════════
+  PANDUAN SETUP FIREBASE (WAJIB BACA)
+═══════════════════════════════════════════════════════════════
+
+LANGKAH 1 — Buat project Firebase
+  1. Buka https://console.firebase.google.com
+  2. Klik "Add project" → beri nama → lanjut sampai selesai
+
+LANGKAH 2 — Aktifkan Realtime Database
+  1. Di sidebar kiri: Build → Realtime Database
+  2. Klik "Create database"
+  3. Pilih lokasi: asia-southeast1 (Singapore) → Next
+  4. Pilih "Start in test mode" → Enable
+     (test mode = semua bisa baca/tulis selama 30 hari,
+      nanti bisa ganti rules)
+
+LANGKAH 3 — Ambil config
+  1. Di sidebar kiri: Project Overview → klik icon </> (Web)
+  2. Register app → beri nama → Register
+  3. Copy bagian "firebaseConfig" yang muncul
+  4. Tempel ke dalam kode di bagian firebaseConfig di atas,
+     ganti semua nilai "GANTI_INI"
+
+LANGKAH 4 — Set Database Rules (opsional tapi dianjurkan)
+  1. Di Realtime Database → tab "Rules"
+  2. Ganti isinya dengan ini:
+     {
+       "rules": {
+         "users": { ".read": true, ".write": true },
+         "records": { ".read": true, ".write": true }
+       }
+     }
+  3. Publish
+
+LANGKAH 5 — Deploy ulang ke Netlify
+  1. Upload file HTML yang sudah diisi config tadi
+  2. Selesai — data sekarang disimpan di cloud
+
+SOAL AKURASI GPS:
+  - enableHighAccuracy sudah aktif di kode
+  - Di HP Android/iPhone: aktifkan GPS di pengaturan → Presisi Tinggi
+  - Akurasi <5m = sangat akurat (GPS hardware aktif)
+  - Akurasi >100m = pakai WiFi/IP (GPS belum lock, biasanya
+    terjadi kalau user baru buka atau di dalam ruangan)
+  - Solusi: tekan "Perbarui" setelah beberapa detik di luar ruangan
+
+═══════════════════════════════════════════════════════════════
+-->
 </body>
 </html>
