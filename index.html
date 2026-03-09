@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PaketTrack</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#0a0a0a;--black2:#111;--black3:#1a1a1a;--black4:#222;
+  --border:#2e2e2e;--border2:#3a3a3a;
+  --silver:#a0a0a0;--silver2:#c8c8c8;--white:#f0f0f0;--white2:#fff;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--black)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--silver)}
+
+body{background:var(--black);color:var(--white);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ── SCREENS ── */
+.screen{display:none}
+.screen.active{display:block}
+#screen-auth{display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+#screen-auth.active{display:flex}
+
+/* ── MUSIC PLAYER ── */
+#music-bar{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  z-index:999;
+  display:flex;align-items:center;gap:10px;
+  background:rgba(17,17,17,0.95);
+  border:1px solid var(--border2);
+  backdrop-filter:blur(12px);
+  padding:10px 18px;
+  border-radius:100px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.5);
+  opacity:0;
+  transition:opacity 0.5s ease, transform 0.5s ease;
+  transform:translateX(-50%) translateY(20px);
+  min-width:220px;
+}
+#music-bar.visible{opacity:1;transform:translateX(-50%) translateY(0)}
+.music-dot{width:6px;height:6px;border-radius:50%;background:var(--silver2);animation:musicPulse 1.2s ease infinite}
+.music-dot:nth-child(2){animation-delay:.2s}
+.music-dot:nth-child(3){animation-delay:.4s}
+.music-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--silver);letter-spacing:1px;flex:1}
+.music-toggle{background:none;border:none;color:var(--silver2);cursor:pointer;font-size:14px;padding:2px 6px;transition:color .2s}
+.music-toggle:hover{color:var(--white2)}
+.music-vol{-webkit-appearance:none;appearance:none;width:60px;height:2px;background:var(--border2);outline:none;cursor:pointer;border-radius:1px}
+.music-vol::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--silver2);cursor:pointer}
+
+/* ── AUTH ── */
+.auth-box{width:100%;max-width:380px;animation:authEntrance .6s cubic-bezier(.34,1.56,.64,1) both}
+.auth-logo{font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:4px;color:var(--white2);margin-bottom:4px}
+.auth-logo span{color:var(--silver)}
+.auth-sub{font-size:11px;color:var(--silver);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;margin-bottom:28px}
+.auth-card{background:var(--black2);border:1px solid var(--border);padding:28px;margin-bottom:12px;animation:fadeUp .5s .1s ease both}
+.auth-tabs{display:flex;margin-bottom:22px;border-bottom:1px solid var(--border)}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;color:var(--silver);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .25s;background:none;border-top:none;border-left:none;border-right:none;font-family:'IBM Plex Sans',sans-serif}
+.auth-tab.active{color:var(--white2);border-bottom-color:var(--white2)}
+.auth-form{display:none;flex-direction:column;gap:14px}
+.auth-form.active{display:flex}
+.auth-hint{font-size:11px;color:var(--silver);font-family:'IBM Plex Mono',monospace;text-align:center}
+
+/* ── TOPBAR ── */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(10,10,10,0.95);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;padding:13px 20px;
+  animation:slideDown .4s ease both;
+}
+.topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:var(--white2);flex:1}
+.topbar-logo span{color:var(--silver)}
+.topbar-user{font-size:11px;color:var(--silver);font-family:'IBM Plex Mono',monospace}
+.topbar-btn{background:none;border:1px solid var(--border);color:var(--silver);padding:6px 14px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .2s;white-space:nowrap;border-radius:2px}
+.topbar-btn:hover{color:var(--white);border-color:var(--silver);background:rgba(255,255,255,0.04)}
+.topbar-btn.hi{border-color:var(--border2);color:var(--silver2)}
+
+.wrap{max-width:760px;margin:0 auto;padding:32px 20px 120px}
+
+/* ── FORMS ── */
+.fg{display:flex;flex-direction:column;gap:6px}
+label{font-size:10px;font-weight:600;color:var(--silver);letter-spacing:1.5px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace}
+input,textarea,select{
+  background:var(--black3);border:1px solid var(--border);border-bottom:1px solid var(--border2);
+  padding:11px 13px;color:var(--white);font-family:'IBM Plex Sans',sans-serif;font-size:14px;
+  outline:none;transition:border-color .2s, background .2s, box-shadow .2s;
+  width:100%;border-radius:0;-webkit-appearance:none;appearance:none
+}
+input:focus,textarea:focus,select:focus{border-color:var(--silver);background:var(--black4);box-shadow:0 0 0 2px rgba(160,160,160,0.08)}
+input::placeholder,textarea::placeholder{color:#3a3a3a;font-size:13px}
+select option{background:var(--black3)}
+
+/* ── GPS CARD ── */
+.gps-card{
+  background:var(--black2);border:1px solid var(--border);padding:26px;margin-bottom:24px;
+  animation:fadeUp .5s .15s ease both;
+  transition:border-color .3s;
+}
+.gps-card:hover{border-color:var(--border2)}
+
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;color:var(--silver2);margin-bottom:20px;display:flex;align-items:center;gap:12px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.gps-status{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;background:var(--black3);
+  border:1px solid var(--border);border-left:3px solid var(--border2);
+  margin-bottom:20px;
+  transition:border-left-color .4s, background .3s;
+}
+.gps-status.ok{border-left-color:#888;background:rgba(160,160,160,0.04)}
+.gps-status.err{border-left-color:#444}
+.gps-status.loading{border-left-color:#666}
+.gps-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);flex-shrink:0;transition:background .4s, box-shadow .4s}
+.gps-status.ok .gps-dot{background:var(--silver2);box-shadow:0 0 8px rgba(200,200,200,.4)}
+.gps-status.loading .gps-dot{animation:blink 1s infinite}
+.gps-status-info{flex:1}
+.gps-status-label{font-size:12px;font-weight:600;color:var(--white);margin-bottom:1px;transition:all .3s}
+.gps-status-desc{font-size:10px;color:var(--silver);font-family:'IBM Plex Mono',monospace}
+
+/* ── RESULT GRID ── */
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.result-item{
+  background:var(--black3);border:1px solid var(--border);padding:12px 14px;
+  transition:border-color .2s, transform .2s;
+  animation:fadeUp .4s ease both;
+}
+.result-item:nth-child(1){animation-delay:.05s}
+.result-item:nth-child(2){animation-delay:.1s}
+.result-item:nth-child(3){animation-delay:.15s}
+.result-item:nth-child(4){animation-delay:.2s}
+.result-item:nth-child(5){animation-delay:.25s}
+.result-item:nth-child(6){animation-delay:.3s}
+.result-item:nth-child(7){animation-delay:.35s}
+.result-item:nth-child(8){animation-delay:.4s}
+.result-item:nth-child(9){animation-delay:.45s}
+.result-item.full{grid-column:1/-1}
+.result-item:hover{border-color:var(--border2)}
+.ri-label{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#444;letter-spacing:1.5px;margin-bottom:5px;text-transform:uppercase}
+.ri-value{font-size:13px;color:var(--silver2);line-height:1.4;transition:color .3s}
+.ri-value.mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
+.ri-value.empty{color:#2e2e2e}
+.ri-value a{color:var(--silver);text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:11px;word-break:break-all;transition:color .2s}
+.ri-value a:hover{color:var(--white2)}
+
+.acc-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 10px;border:1px solid var(--border2);color:var(--silver);letter-spacing:1px;margin-top:4px;transition:all .3s}
+.acc-badge.high{color:var(--silver2);border-color:#555}
+.acc-badge.low{color:#444;border-color:#282828}
+
+/* ── MAP ── */
+.map-wrap{
+  width:100%;height:200px;background:var(--black3);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;margin-top:14px;
+  transition:border-color .3s;
+}
+.map-wrap:hover{border-color:var(--border2)}
+.map-wrap iframe{width:100%;height:100%;border:none;filter:grayscale(100%) contrast(1.1);animation:fadeIn .5s ease both}
+.map-empty{font-size:11px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;letter-spacing:1px}
+
+/* ── BUTTONS ── */
+.btn-row{display:flex;gap:10px;margin-top:16px}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:13px 20px;font-size:11px;font-weight:600;
+  font-family:'IBM Plex Sans',sans-serif;letter-spacing:2px;text-transform:uppercase;
+  border:none;cursor:pointer;
+  transition:all .2s cubic-bezier(.34,1.2,.64,1);
+  position:relative;overflow:hidden;
+}
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background .2s}
+.btn:hover::after{background:rgba(255,255,255,0.05)}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:var(--white);color:var(--black);flex:1}
+.btn-primary:hover{background:var(--silver2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(200,200,200,0.15)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-outline{background:transparent;color:var(--silver);border:1px solid var(--border2);flex:none}
+.btn-outline:hover{color:var(--white);border-color:var(--silver);transform:translateY(-1px)}
+.btn-copy{background:var(--black3);color:var(--silver);border:1px solid var(--border2);flex:none}
+.btn-copy:hover{color:var(--white);border-color:var(--silver);transform:translateY(-1px)}
+.btn-copy:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ── HISTORY ── */
+.history-block{
+  background:var(--black2);border:1px solid var(--border);padding:26px;
+  animation:fadeUp .5s .25s ease both;
+}
+.hist-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hist-count{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--silver);border:1px solid var(--border);padding:3px 12px;letter-spacing:1px}
+
+.hist-card{
+  background:var(--black3);border:1px solid var(--border);border-left:3px solid var(--border2);
+  padding:16px;margin-bottom:10px;
+  transition:border-left-color .25s, transform .2s, box-shadow .2s;
+  animation:slideIn .35s ease both;
+}
+.hist-card:hover{border-left-color:var(--silver);transform:translateX(3px);box-shadow:-3px 0 12px rgba(160,160,160,0.06)}
+.hist-card-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.hist-num{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--border2);flex-shrink:0;min-width:28px;line-height:1;transition:color .2s}
+.hist-card:hover .hist-num{color:var(--silver)}
+.hist-time{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--silver);flex:1}
+.hist-acts{display:flex;gap:7px}
+.icon-btn{width:30px;height:30px;border:1px solid var(--border);background:var(--black2);color:var(--silver);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all .2s;border-radius:2px}
+.icon-btn:hover{border-color:var(--silver2);color:var(--white2);transform:scale(1.1)}
+.icon-btn.del:hover{border-color:#555;color:#aaa;transform:scale(1.1)}
+.hist-body{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hf{}.hf.full{grid-column:1/-1}
+.hf-lbl{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#3a3a3a;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
+.hf-val{font-size:12px;color:var(--silver2);line-height:1.4}
+.hf-val.mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.hf-val a{color:var(--silver);text-decoration:none;font-size:11px;transition:color .2s}
+.hf-val a:hover{color:var(--white2)}
+
+.empty-state{text-align:center;padding:50px 20px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px}
+.empty-state .big{font-size:2rem;margin-bottom:10px;filter:grayscale(1)}
+
+/* ── ADMIN MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0);z-index:500;align-items:center;justify-content:center;padding:20px;transition:background .3s}
+.modal-overlay.open{display:flex;background:rgba(0,0,0,0.88)}
+.modal-box{
+  background:var(--black2);border:1px solid var(--border);
+  width:100%;max-width:720px;max-height:90vh;overflow-y:auto;
+  transform:scale(0.95) translateY(20px);opacity:0;
+  transition:transform .3s cubic-bezier(.34,1.2,.64,1), opacity .3s ease;
+}
+.modal-overlay.open .modal-box{transform:scale(1) translateY(0);opacity:1}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--black2);z-index:1}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:var(--white2)}
+.modal-close{background:none;border:1px solid var(--border);color:var(--silver);width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s;border-radius:2px}
+.modal-close:hover{border-color:var(--silver);color:var(--white);transform:rotate(90deg)}
+.modal-body{padding:22px}
+
+.admin-pw-box{display:flex;flex-direction:column;gap:14px;align-items:center;padding:36px 20px}
+.admin-pw-box p{font-size:12px;color:var(--silver);font-family:'IBM Plex Mono',monospace;letter-spacing:1px}
+
+.admin-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:22px}
+.stat-box{background:var(--black3);border:1px solid var(--border);padding:14px;transition:border-color .2s, transform .2s}
+.stat-box:hover{border-color:var(--border2);transform:translateY(-2px)}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:var(--white2);line-height:1}
+.stat-lbl{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--silver);letter-spacing:1px;margin-top:3px}
+
+.admin-user{background:var(--black3);border:1px solid var(--border);padding:16px;margin-bottom:10px;transition:border-color .2s}
+.admin-user:hover{border-color:var(--border2)}
+.admin-user-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.admin-avatar{width:34px;height:34px;background:var(--border2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--silver2);flex-shrink:0}
+.admin-uname{font-size:14px;font-weight:600;color:var(--white)}
+.admin-umeta{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--silver)}
+.admin-ucount{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--silver);border:1px solid var(--border);padding:2px 10px;margin-left:auto}
+
+.admin-hist{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+.admin-hist-title{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#333;letter-spacing:2px;margin-bottom:8px}
+.admin-hist-item{padding:10px 12px;background:var(--black2);border-left:2px solid var(--border2);margin-bottom:6px;transition:border-left-color .2s}
+.admin-hist-item:hover{border-left-color:var(--silver)}
+.admin-hist-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px}
+.admin-hist-row.full{grid-template-columns:1fr}
+.ahl{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#333;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+.ahv{font-size:12px;color:var(--silver2)}
+.ahv.mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.ahv a{color:var(--silver);text-decoration:none;font-size:11px;word-break:break-all;transition:color .2s}
+.ahv a:hover{color:var(--white2)}
+.admin-hist-time{font-size:10px;font-family:'IBM Plex Mono',monospace;color:#2e2e2e;margin-top:6px}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:80px;right:24px;z-index:9999;
+  background:var(--white2);color:var(--black);
+  padding:12px 18px;font-size:13px;font-weight:600;
+  font-family:'IBM Plex Sans',sans-serif;
+  box-shadow:0 4px 24px rgba(0,0,0,.6);
+  transform:translateX(120%);opacity:0;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1), opacity .35s ease;
+  max-width:280px;border-left:4px solid var(--black);border-radius:2px;
+}
+.toast.show{transform:translateX(0);opacity:1}
+.toast.err{background:var(--black2);color:var(--white);border-left-color:#666}
+.toast.inf{background:var(--black3);color:var(--silver2);border-left-color:#444}
+
+.spin{display:inline-block;width:11px;height:11px;border:2px solid #333;border-top-color:var(--silver);border-radius:50%;animation:rotate .7s linear infinite}
+
+/* ── ANIMATIONS ── */
+@keyframes rotate{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes musicPulse{0%,100%{transform:scaleY(1);opacity:.7}50%{transform:scaleY(1.8);opacity:1}}
+@keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes authEntrance{from{opacity:0;transform:translateY(30px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+@media(max-width:580px){
+  .result-grid,.hist-body,.admin-stats,.admin-hist-row{grid-template-columns:1fr}
+  .result-item.full,.hf.full,.admin-hist-row.full{grid-column:1/-1}
+  .btn-row{flex-direction:column}
+  .gps-card,.history-block{padding:16px}
+  .topbar{flex-wrap:wrap;gap:8px}
+  #music-bar{width:calc(100% - 40px);border-radius:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- AUDIO -->
+<audio id="bgMusic" loop preload="auto">
+  <source src="https://files.catbox.moe/m5ni3s.mp3" type="audio/mpeg"/>
+</audio>
+
+<!-- MUSIC BAR -->
+<div id="music-bar">
+  <div class="music-dot"></div>
+  <div class="music-dot"></div>
+  <div class="music-dot"></div>
+  <div class="music-label">♪ NOW PLAYING</div>
+  <input type="range" class="music-vol" id="volSlider" min="0" max="1" step="0.05" value="0.35" oninput="setVol(this.value)" title="Volume"/>
+  <button class="music-toggle" id="musicToggle" onclick="toggleMusic()" title="Play/Pause">⏸</button>
+</div>
+
+<!-- ═══ AUTH ═══ -->
+<div id="screen-auth" class="screen active">
+  <div class="auth-box">
+    <div class="auth-logo">Paket<span>Track</span></div>
+    <div class="auth-sub">PENCATAT LOKASI GPS AKURAT</div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+        <button class="auth-tab" onclick="switchTab('register')">Buat Akun</button>
+      </div>
+      <div class="auth-form active" id="form-login">
+        <div class="fg"><label>Username</label><input type="text" id="lu" placeholder="Masukkan username" autocomplete="username"/></div>
+        <div class="fg"><label>Password</label><input type="password" id="lp" placeholder="Masukkan password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+        <button class="btn btn-primary" onclick="doLogin()">Masuk</button>
+        <div class="auth-hint">Belum punya akun? <b style="color:var(--silver2);cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1" onclick="switchTab('register')">Buat Akun</b></div>
+      </div>
+      <div class="auth-form" id="form-register">
+        <div class="fg"><label>Username</label><input type="text" id="ru" placeholder="Buat username" autocomplete="username"/></div>
+        <div class="fg"><label>Password</label><input type="password" id="rp" placeholder="Buat password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+        <button class="btn btn-primary" onclick="doRegister()">Buat Akun &amp; Masuk</button>
+        <div class="auth-hint">Sudah punya akun? <b style="color:var(--silver2);cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1" onclick="switchTab('login')">Login</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div id="screen-main" class="screen">
+  <div class="topbar">
+    <div class="topbar-logo">Paket<span>Track</span></div>
+    <div class="topbar-user" id="tbUser"></div>
+    <button class="topbar-btn hi" onclick="openAdmin()">⊞ List Pantun</button>
+    <button class="topbar-btn" onclick="doLogout()">Keluar</button>
+  </div>
+
+  <div class="wrap">
+    <!-- GPS CARD -->
+    <div class="gps-card">
+      <div class="sec-title">Lokasi GPS</div>
+      <div class="gps-status" id="gpsStatus">
+        <div class="gps-dot" id="gpsDot"></div>
+        <div class="gps-status-info">
+          <div class="gps-status-label" id="gpsLabel">Mendeteksi lokasi...</div>
+          <div class="gps-status-desc" id="gpsDesc">Harap izinkan akses lokasi di browser</div>
+        </div>
+      </div>
+
+      <div class="result-grid" id="resultGrid">
+        <div class="result-item"><div class="ri-label">Latitude</div><div class="ri-value mono empty" id="rLat">—</div></div>
+        <div class="result-item"><div class="ri-label">Longitude</div><div class="ri-value mono empty" id="rLng">—</div></div>
+        <div class="result-item"><div class="ri-label">Akurasi</div><div class="ri-value mono empty" id="rAcc">—</div></div>
+        <div class="result-item"><div class="ri-label">Kode Pos</div><div class="ri-value empty" id="rPost">—</div></div>
+        <div class="result-item full"><div class="ri-label">Jalan / Gang</div><div class="ri-value empty" id="rRoad">—</div></div>
+        <div class="result-item"><div class="ri-label">Kelurahan / Desa</div><div class="ri-value empty" id="rVillage">—</div></div>
+        <div class="result-item"><div class="ri-label">Kecamatan</div><div class="ri-value empty" id="rDistrict">—</div></div>
+        <div class="result-item"><div class="ri-label">Kota / Kabupaten</div><div class="ri-value empty" id="rCity">—</div></div>
+        <div class="result-item"><div class="ri-label">Provinsi</div><div class="ri-value empty" id="rState">—</div></div>
+        <div class="result-item full"><div class="ri-label">Alamat Lengkap</div><div class="ri-value empty" id="rFull">—</div></div>
+        <div class="result-item full"><div class="ri-label">Link Google Maps</div><div class="ri-value empty" id="rLink">—</div></div>
+      </div>
+      <div id="accBadge"></div>
+      <div class="map-wrap" id="mapWrap"><span class="map-empty">[ MENUNGGU GPS ]</span></div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="refreshGPS()">↺ Perbarui</button>
+        <button class="btn btn-copy" id="copyBtn" onclick="copyAll()" disabled>⊕ Salin</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="simpan()" disabled>Simpan Lokasi</button>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="history-block">
+      <div class="hist-top">
+        <div class="sec-title" style="margin:0;flex:1">History</div>
+        <div class="hist-count" id="histCount">0 LOK</div>
+      </div>
+      <div id="histList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN MODAL ═══ -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">List Pantun — Admin</div>
+      <button class="modal-close" onclick="closeAdmin()">✕</button>
+    </div>
+    <div class="modal-body" id="adminBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════ MUSIC
+const audio = document.getElementById('bgMusic');
+let musicPlaying = false;
+
+audio.volume = 0.35;
+
+function tryPlayMusic(){
+  audio.play().then(()=>{
+    musicPlaying = true;
+    document.getElementById('musicToggle').textContent = '⏸';
+    document.getElementById('music-bar').classList.add('visible');
+  }).catch(()=>{});
+}
+
+function toggleMusic(){
+  if(musicPlaying){ audio.pause(); musicPlaying=false; document.getElementById('musicToggle').textContent='▶'; }
+  else { audio.play(); musicPlaying=true; document.getElementById('musicToggle').textContent='⏸'; }
+}
+
+function setVol(v){ audio.volume = parseFloat(v); }
+
+// Try to play on first user interaction
+document.addEventListener('click', function startMusic(){
+  tryPlayMusic();
+  document.removeEventListener('click', startMusic);
+}, {once:false});
+
+document.addEventListener('keydown', function startMusic(){
+  tryPlayMusic();
+  document.removeEventListener('keydown', startMusic);
+}, {once:true});
+
+// ═══════════════════ STORAGE
+const LS={get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),del:k=>localStorage.removeItem(k)};
+const ADMIN_PW='K98T';
+const getUsers=()=>LS.get('pt_users')||{};
+const saveUsers=u=>LS.set('pt_users',u);
+const getRecs=un=>LS.get('pt_r_'+un)||[];
+const saveRecs=(un,r)=>LS.set('pt_r_'+un,r);
+const getSess=()=>LS.get('pt_sess');
+const setSess=un=>LS.set('pt_sess',{username:un,at:new Date().toISOString()});
+const clearSess=()=>LS.del('pt_sess');
+
+// ═══════════════════ AUTH
+let CU=null;
+
+function switchTab(t){
+  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));
+  g('form-login').classList.toggle('active',t==='login');
+  g('form-register').classList.toggle('active',t==='register');
+}
+
+function doLogin(){
+  const un=g('lu').value.trim().toLowerCase(), pw=g('lp').value;
+  if(!un||!pw){toast('Username & password wajib.','err');return;}
+  const users=getUsers();
+  if(!users[un]){toast('Username tidak ditemukan.','err');return;}
+  if(users[un].pw!==pw){toast('Password salah.','err');return;}
+  loginOK(un);
+}
+
+function doRegister(){
+  const un=g('ru').value.trim().toLowerCase().replace(/\s+/g,'_'), pw=g('rp').value;
+  if(!un||!pw){toast('Username & password wajib.','err');return;}
+  if(un.length<3){toast('Username min 3 karakter.','err');return;}
+  if(pw.length<4){toast('Password min 4 karakter.','err');return;}
+  const users=getUsers();
+  if(users[un]){toast('Username sudah dipakai.','err');return;}
+  users[un]={pw,createdAt:new Date().toISOString()};
+  saveUsers(users);
+  loginOK(un);
+}
+
+function loginOK(un){
+  CU=un; setSess(un);
+  // Animate out auth, animate in main
+  const auth=g('screen-auth');
+  auth.style.transition='opacity .3s ease, transform .3s ease';
+  auth.style.opacity='0'; auth.style.transform='scale(.97)';
+  setTimeout(()=>{
+    auth.classList.remove('active');
+    auth.style.opacity=''; auth.style.transform='';
+    g('screen-main').classList.add('active');
+    g('tbUser').textContent=un.toUpperCase();
+    renderHist();
+    startGPS();
+    tryPlayMusic();
+  },300);
+  toast('Selamat datang, '+un+'!');
+}
+
+function doLogout(){
+  if(!confirm('Yakin keluar?'))return;
+  clearSess(); CU=null; coords=null; gpsOk=false; geoData=null;
+  g('screen-main').classList.remove('active');
+  g('screen-auth').classList.add('active');
+  g('lu').value=''; g('lp').value='';
+  // Reset GPS display
+  ['rLat','rLng','rAcc','rPost','rRoad','rVillage','rDistrict','rCity','rState','rFull','rLink'].forEach(id=>{
+    const el=g(id); if(el){el.className='ri-value mono empty'; el.textContent='—';}
+  });
+  g('mapWrap').innerHTML='<span class="map-empty">[ MENUNGGU GPS ]</span>';
+  g('accBadge').innerHTML='';
+  g('saveBtn').disabled=true; g('copyBtn').disabled=true;
+  setStatus('','GPS Belum Aktif','');
+  toast('Berhasil keluar.','inf');
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const s=getSess();
+  if(s&&s.username){const u=getUsers();if(u[s.username])loginOK(s.username);}
+});
+
+// ═══════════════════ GPS
+let coords=null, gpsOk=false, geoData=null;
+
+function startGPS(){
+  if(!navigator.geolocation){setStatus('err','GPS Tidak Didukung','Browser ini tidak support GPS');return;}
+  setStatus('loading','Mendeteksi Lokasi...','Izinkan akses lokasi di popup browser');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{gpsOk=true;applyPos(pos);},
+    err=>{
+      const m={1:'Izin ditolak. Izinkan di pengaturan browser.',2:'Posisi tidak tersedia.',3:'Timeout. Coba lagi.'};
+      setStatus('err','GPS Gagal',m[err.code]||err.message);
+      toast(m[err.code]||'GPS gagal.','err');
+    },
+    {enableHighAccuracy:true,timeout:20000,maximumAge:0}
+  );
+}
+
+function refreshGPS(){
+  if(!navigator.geolocation)return;
+  setStatus('loading','Memperbarui Lokasi...','Sedang mengambil posisi terbaru');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{applyPos(pos);toast('Lokasi diperbarui!');},
+    ()=>toast('Gagal perbarui.','err'),
+    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+  );
+}
+
+function applyPos(pos){
+  const {latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
+  coords={lat,lng,acc};
+
+  animateValue('rLat',lat.toFixed(7));
+  animateValue('rLng',lng.toFixed(7));
+  animateValue('rAcc','±'+Math.round(acc)+'m');
+
+  const hi=acc<=20,med=acc<=100;
+  g('accBadge').innerHTML=`<span class="acc-badge ${hi?'high':med?'':'low'}">${hi?'✓ AKURASI TINGGI':med?'~ AKURASI SEDANG':'✗ AKURASI RENDAH'} (${Math.round(acc)}m)</span>`;
+
+  const mlink=`https://maps.google.com/maps?q=${lat},${lng}`;
+  const rl=g('rLink'); rl.className='ri-value'; rl.innerHTML=`<a href="${mlink}" target="_blank">${mlink}</a>`;
+
+  setStatus('ok','GPS Aktif',`${lat.toFixed(5)}, ${lng.toFixed(5)} · ${new Date().toLocaleTimeString('id-ID')}`);
+  g('mapWrap').innerHTML=`<iframe src="https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed" allowfullscreen loading="lazy"></iframe>`;
+
+  reverseGeo(lat,lng);
+}
+
+function animateValue(id,val){
+  const el=g(id);
+  el.style.transition='opacity .2s ease';
+  el.style.opacity='0';
+  setTimeout(()=>{
+    el.className='ri-value mono'; el.textContent=val;
+    el.style.opacity='1';
+  },200);
+}
+
+async function reverseGeo(lat,lng){
+  ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id=>{
+    g(id).className='ri-value'; g(id).innerHTML='<span class="spin"></span>';
+  });
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,{headers:{'Accept-Language':'id'}});
+    const d=await r.json();
+    const a=d.address||{};
+    geoData=d;
+
+    const road=a.road||a.pedestrian||a.footway||a.path||a.residential||'';
+    const houseNum=a.house_number?a.house_number+' ':'';
+    const village=a.village||a.suburb||a.neighbourhood||a.quarter||'';
+    const subdistrict=a.city_district||a.district||'';
+    const district=a.county||a.state_district||a.municipality||'';
+    const city=a.city||a.town||a.municipality||district||'';
+    const state=a.state||'';
+    const postcode=a.postcode||'';
+    const full=d.display_name||'';
+
+    // Animate each field in with stagger
+    const fields=[['rRoad',(houseNum+road)||'—'],['rVillage',village||'—'],['rDistrict',subdistrict||district||'—'],['rCity',city||'—'],['rState',state||'—'],['rPost',postcode||'—'],['rFull',full||'—']];
+    fields.forEach(([id,val],i)=>{
+      setTimeout(()=>{
+        const el=g(id);
+        el.style.transition='opacity .25s ease';
+        el.style.opacity='0';
+        setTimeout(()=>{ el.className='ri-value'; el.textContent=val; el.style.opacity='1'; },100);
+      },i*60);
+    });
+
+    g('saveBtn').disabled=false;
+    g('copyBtn').disabled=false;
+  }catch{
+    ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id=>{ g(id).className='ri-value'; g(id).textContent='Gagal'; });
+    toast('Gagal ambil alamat. Cek koneksi.','err');
+  }
+}
+
+function setStatus(state,label,desc){
+  g('gpsStatus').className='gps-status'+(state?' '+state:'');
+  sv('gpsLabel',label); sv('gpsDesc',desc);
+}
+
+// ═══════════════════ COPY ALL
+function copyAll(){
+  if(!coords||!geoData){toast('Lokasi belum tersedia.','err');return;}
+  const a=geoData.address||{};
+  const lat=coords.lat.toFixed(7), lng=coords.lng.toFixed(7);
+  const mlink=`https://maps.google.com/maps?q=${lat},${lng}`;
+  const text=`📍 INFORMASI LOKASI
+━━━━━━━━━━━━━━━━━━━
+🌐 Koordinat     : ${lat}, ${lng}
+📏 Akurasi       : ±${Math.round(coords.acc)}m
+━━━━━━━━━━━━━━━━━━━
+🏘️ Jalan/Gang    : ${a.road||a.pedestrian||'—'}
+🏡 Kelurahan     : ${a.village||a.suburb||a.neighbourhood||'—'}
+🏙️ Kecamatan     : ${a.city_district||a.district||a.county||'—'}
+🌆 Kota/Kab      : ${a.city||a.town||a.municipality||'—'}
+📍 Provinsi      : ${a.state||'—'}
+📮 Kode Pos      : ${a.postcode||'—'}
+━━━━━━━━━━━━━━━━━━━
+📋 Alamat Lengkap:
+${geoData.display_name||'—'}
+━━━━━━━━━━━━━━━━━━━
+🗺️ Google Maps   : ${mlink}`;
+  navigator.clipboard.writeText(text).then(()=>toast('Semua info berhasil disalin! ✓')).catch(()=>toast('Gagal salin.','err'));
+}
+
+// ═══════════════════ SIMPAN
+function simpan(){
+  if(!CU){toast('Login dulu.','err');return;}
+  if(!coords||!geoData){toast('Lokasi belum tersedia.','err');return;}
+  const a=geoData.address||{};
+  const lat=coords.lat.toFixed(7), lng=coords.lng.toFixed(7);
+  const rec={
+    id:Date.now(),
+    lat:parseFloat(lat),lng:parseFloat(lng),acc:coords.acc,
+    road:a.road||a.pedestrian||a.footway||a.residential||'',
+    houseNum:a.house_number||'',
+    village:a.village||a.suburb||a.neighbourhood||a.quarter||'',
+    subdistrict:a.city_district||a.district||'',
+    district:a.county||a.state_district||'',
+    city:a.city||a.town||a.municipality||'',
+    state:a.state||'',
+    postcode:a.postcode||'',
+    full:geoData.display_name||'',
+    mapsLink:`https://maps.google.com/maps?q=${lat},${lng}`,
+    waktu:new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})
+  };
+  const recs=getRecs(CU); recs.unshift(rec); saveRecs(CU,recs);
+  toast('Lokasi tersimpan! ✓');
+  renderHist();
+}
+
+function hapus(id){
+  if(!confirm('Hapus data ini?'))return;
+  saveRecs(CU,getRecs(CU).filter(r=>r.id!==id));
+  renderHist(); toast('Data dihapus.','inf');
+}
+
+// ═══════════════════ HISTORY
+function renderHist(){
+  if(!CU)return;
+  const recs=getRecs(CU);
+  sv('histCount',recs.length+' LOK');
+  const list=g('histList');
+  if(!recs.length){
+    list.innerHTML='<div class="empty-state"><div class="big">📍</div>Belum ada lokasi tersimpan.</div>';
+    return;
+  }
+  list.innerHTML=recs.map((r,i)=>`
+    <div class="hist-card" style="animation-delay:${i*0.04}s">
+      <div class="hist-card-top">
+        <div class="hist-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="hist-time">${r.waktu}</div>
+        <div class="hist-acts">
+          <button class="icon-btn" title="Buka Maps" onclick="window.open('${r.mapsLink}','_blank')">🗺</button>
+          <button class="icon-btn" title="Salin Koordinat" onclick="navigator.clipboard.writeText('${r.lat}, ${r.lng}').then(()=>toast('Disalin! ✓'))">⊕</button>
+          <button class="icon-btn del" title="Hapus" onclick="hapus(${r.id})">✕</button>
+        </div>
+      </div>
+      <div class="hist-body">
+        <div class="hf"><div class="hf-lbl">Latitude</div><div class="hf-val mono">${r.lat}</div></div>
+        <div class="hf"><div class="hf-lbl">Longitude</div><div class="hf-val mono">${r.lng}</div></div>
+        <div class="hf"><div class="hf-lbl">Akurasi</div><div class="hf-val mono">±${Math.round(r.acc)}m</div></div>
+        <div class="hf"><div class="hf-lbl">Kode Pos</div><div class="hf-val">${e(r.postcode)||'—'}</div></div>
+        ${r.road?`<div class="hf full"><div class="hf-lbl">Jalan</div><div class="hf-val">${e(r.houseNum?r.houseNum+' ':'')}${e(r.road)}</div></div>`:''}
+        ${r.village?`<div class="hf"><div class="hf-lbl">Kelurahan</div><div class="hf-val">${e(r.village)}</div></div>`:''}
+        ${(r.subdistrict||r.district)?`<div class="hf"><div class="hf-lbl">Kecamatan</div><div class="hf-val">${e(r.subdistrict||r.district)}</div></div>`:''}
+        ${r.city?`<div class="hf"><div class="hf-lbl">Kota/Kab</div><div class="hf-val">${e(r.city)}</div></div>`:''}
+        ${r.state?`<div class="hf"><div class="hf-lbl">Provinsi</div><div class="hf-val">${e(r.state)}</div></div>`:''}
+        <div class="hf full"><div class="hf-lbl">Alamat Lengkap</div><div class="hf-val">${e(r.full)}</div></div>
+        <div class="hf full"><div class="hf-lbl">Link Maps</div><div class="hf-val"><a href="${r.mapsLink}" target="_blank">${r.mapsLink}</a></div></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════ ADMIN
+let adminOK=false;
+
+function openAdmin(){
+  g('adminModal').classList.add('open');
+  adminOK?renderAdminDash():renderAdminPW();
+}
+function closeAdmin(){g('adminModal').classList.remove('open');}
+
+function renderAdminPW(){
+  g('adminBody').innerHTML=`
+    <div class="admin-pw-box">
+      <p>MASUKKAN PASSWORD ADMIN</p>
+      <input type="password" id="apw" placeholder="Password" maxlength="20" onkeydown="if(event.key==='Enter')checkPW()" style="max-width:220px;text-align:center;letter-spacing:4px"/>
+      <button class="btn btn-primary" style="max-width:200px" onclick="checkPW()">Masuk</button>
+    </div>`;
+  setTimeout(()=>{const el=g('apw');if(el)el.focus();},200);
+}
+
+function checkPW(){
+  if(g('apw').value===ADMIN_PW){adminOK=true;toast('Akses admin OK! ✓');renderAdminDash();}
+  else{toast('Password salah.','err');g('apw').value='';g('apw').focus();}
+}
+
+function renderAdminDash(){
+  const users=getUsers(), uList=Object.keys(users);
+  let total=0; uList.forEach(u=>{total+=getRecs(u).length;});
+  g('adminBody').innerHTML=`
+    <div class="admin-stats">
+      <div class="stat-box"><div class="stat-num">${uList.length}</div><div class="stat-lbl">PENGGUNA</div></div>
+      <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-lbl">TOTAL LOKASI</div></div>
+      <div class="stat-box"><div class="stat-num">${CU?CU.substring(0,6).toUpperCase():'—'}</div><div class="stat-lbl">SESI AKTIF</div></div>
+    </div>
+    <div class="sec-title" style="margin-bottom:14px">Daftar Pengguna</div>
+    ${uList.length?uList.map(u=>renderAdminUser(u,users[u])).join(''):'<div class="empty-state"><div class="big">👤</div>Belum ada pengguna.</div>'}
+  `;
+}
+
+function renderAdminUser(un,info){
+  const recs=getRecs(un);
+  const joined=new Date(info.createdAt).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+  return `
+    <div class="admin-user">
+      <div class="admin-user-top">
+        <div class="admin-avatar">${un.charAt(0).toUpperCase()}</div>
+        <div style="flex:1"><div class="admin-uname">${e(un)}</div><div class="admin-umeta">Daftar: ${joined}</div></div>
+        <div class="admin-ucount">${recs.length} LOKASI</div>
+      </div>
+      ${recs.length?`
+      <div class="admin-hist">
+        <div class="admin-hist-title">HISTORY LOKASI (${recs.length} TOTAL)</div>
+        ${recs.map(r=>`
+          <div class="admin-hist-item">
+            <div class="admin-hist-row">
+              <div><div class="ahl">Latitude</div><div class="ahv mono">${r.lat}</div></div>
+              <div><div class="ahl">Longitude</div><div class="ahv mono">${r.lng}</div></div>
+            </div>
+            <div class="admin-hist-row">
+              <div><div class="ahl">Akurasi</div><div class="ahv mono">±${Math.round(r.acc)}m</div></div>
+              <div><div class="ahl">Kode Pos</div><div class="ahv">${e(r.postcode)||'—'}</div></div>
+            </div>
+            ${r.road?`<div class="admin-hist-row full"><div><div class="ahl">Jalan</div><div class="ahv">${e(r.houseNum?r.houseNum+' ':'')}${e(r.road)}</div></div></div>`:''}
+            <div class="admin-hist-row">
+              ${r.village?`<div><div class="ahl">Kelurahan</div><div class="ahv">${e(r.village)}</div></div>`:'<div></div>'}
+              ${(r.subdistrict||r.district)?`<div><div class="ahl">Kecamatan</div><div class="ahv">${e(r.subdistrict||r.district)}</div></div>`:'<div></div>'}
+            </div>
+            <div class="admin-hist-row">
+              ${r.city?`<div><div class="ahl">Kota/Kab</div><div class="ahv">${e(r.city)}</div></div>`:'<div></div>'}
+              ${r.state?`<div><div class="ahl">Provinsi</div><div class="ahv">${e(r.state)}</div></div>`:'<div></div>'}
+            </div>
+            <div class="admin-hist-row full"><div><div class="ahl">Alamat Lengkap</div><div class="ahv">${e(r.full)}</div></div></div>
+            <div class="admin-hist-row full"><div><div class="ahl">Link Google Maps</div><div class="ahv"><a href="${r.mapsLink}" target="_blank">${r.mapsLink}</a></div></div></div>
+            <div class="admin-hist-time">${r.waktu}</div>
+          </div>
+        `).join('')}
+      </div>`:`<div style="font-size:10px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;margin-top:8px">Belum ada lokasi.</div>`}
+    </div>`;
+}
+
+g('adminModal').addEventListener('click',function(ev){if(ev.target===this)closeAdmin();});
+
+// ═══════════════════ UTILS
+function g(id){return document.getElementById(id)}
+function sv(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function e(s){return s?(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+
+let tT;
+function toast(msg,type='ok'){
+  const t=g('toast'); t.textContent=msg;
+  t.className='toast show'+(type==='err'?' err':type==='inf'?' inf':'');
+  clearTimeout(tT);
+  tT=setTimeout(()=>{t.className='toast'+(type==='err'?' err':type==='inf'?' inf':'');},3200);
+}
+</script>
+</body>
+</html>
