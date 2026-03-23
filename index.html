@@ -1,1214 +1,534 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>PaketTrack</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<title>GENERATE PHOTO FOR PROMPT</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<audio id="bgMusic" src="https://files.catbox.moe/kzft1z.mp3" loop autoplay></audio>
+<script>
+  window.addEventListener('load', () => {
+    const music = document.getElementById('bgMusic');
+    music.volume = 0.5;
+    const tryPlay = () => music.play().catch(() => {});
+    tryPlay();
+    document.addEventListener('click', tryPlay, { once: true });
+    document.addEventListener('keydown', tryPlay, { once: true });
+  });
+</script>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --black:#0a0a0a;--black2:#111;--black3:#1a1a1a;--black4:#222;
-  --border:#2e2e2e;--border2:#3a3a3a;
-  --silver:#a0a0a0;--silver2:#c8c8c8;--white:#f0f0f0;--white2:#fff;
-}
-
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:var(--black)}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:var(--silver)}
-
-body{background:var(--black);color:var(--white);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;overflow-x:hidden}
-
-/* ── SCREENS ── */
-.screen{display:none}
-.screen.active{display:block}
-#screen-auth{display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
-#screen-auth.active{display:flex}
-
-/* ── MUSIC PLAYER ── */
-#music-bar{
-  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-  z-index:999;
-  display:flex;align-items:center;gap:10px;
-  background:rgba(17,17,17,0.95);
-  border:1px solid var(--border2);
-  backdrop-filter:blur(12px);
-  padding:10px 18px;
-  border-radius:100px;
-  box-shadow:0 4px 24px rgba(0,0,0,0.5);
-  opacity:0;
-  transition:opacity 0.5s ease, transform 0.5s ease;
-  transform:translateX(-50%) translateY(20px);
-  min-width:220px;
-}
-#music-bar.visible{opacity:1;transform:translateX(-50%) translateY(0)}
-.music-dot{width:6px;height:6px;border-radius:50%;background:var(--silver2);animation:musicPulse 1.2s ease infinite}
-.music-dot:nth-child(2){animation-delay:.2s}
-.music-dot:nth-child(3){animation-delay:.4s}
-.music-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--silver);letter-spacing:1px;flex:1}
-.music-toggle{background:none;border:none;color:var(--silver2);cursor:pointer;font-size:14px;padding:2px 6px;transition:color .2s}
-.music-toggle:hover{color:var(--white2)}
-.music-vol{-webkit-appearance:none;appearance:none;width:60px;height:2px;background:var(--border2);outline:none;cursor:pointer;border-radius:1px}
-.music-vol::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--silver2);cursor:pointer}
-
-/* ── AUTH ── */
-.auth-box{width:100%;max-width:380px;animation:authEntrance .6s cubic-bezier(.34,1.56,.64,1) both}
-.auth-logo{font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:4px;color:var(--white2);margin-bottom:4px}
-.auth-logo span{color:var(--silver)}
-.auth-sub{font-size:11px;color:var(--silver);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;margin-bottom:28px}
-.auth-card{background:var(--black2);border:1px solid var(--border);padding:28px;margin-bottom:12px;animation:fadeUp .5s .1s ease both}
-.auth-tabs{display:flex;margin-bottom:22px;border-bottom:1px solid var(--border)}
-.auth-tab{flex:1;padding:10px;text-align:center;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;color:var(--silver);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .25s;background:none;border-top:none;border-left:none;border-right:none;font-family:'IBM Plex Sans',sans-serif}
-.auth-tab.active{color:var(--white2);border-bottom-color:var(--white2)}
-.auth-form{display:none;flex-direction:column;gap:14px}
-.auth-form.active{display:flex}
-.auth-hint{font-size:11px;color:var(--silver);font-family:'IBM Plex Mono',monospace;text-align:center}
-
-/* ── TOPBAR ── */
-.topbar{
-  position:sticky;top:0;z-index:100;
-  background:rgba(10,10,10,0.95);
-  backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:12px;padding:13px 20px;
-  animation:slideDown .4s ease both;
-}
-.topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:var(--white2);flex:1}
-.topbar-logo span{color:var(--silver)}
-.topbar-user{font-size:11px;color:var(--silver);font-family:'IBM Plex Mono',monospace}
-.topbar-btn{background:none;border:1px solid var(--border);color:var(--silver);padding:6px 14px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .2s;white-space:nowrap;border-radius:2px}
-.topbar-btn:hover{color:var(--white);border-color:var(--silver);background:rgba(255,255,255,0.04)}
-.topbar-btn.hi{border-color:var(--border2);color:var(--silver2)}
-
-.wrap{max-width:760px;margin:0 auto;padding:32px 20px 120px}
-
-/* ── FORMS ── */
-.fg{display:flex;flex-direction:column;gap:6px}
-label{font-size:10px;font-weight:600;color:var(--silver);letter-spacing:1.5px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace}
-input,textarea,select{
-  background:var(--black3);border:1px solid var(--border);border-bottom:1px solid var(--border2);
-  padding:11px 13px;color:var(--white);font-family:'IBM Plex Sans',sans-serif;font-size:14px;
-  outline:none;transition:border-color .2s, background .2s, box-shadow .2s;
-  width:100%;border-radius:0;-webkit-appearance:none;appearance:none
-}
-input:focus,textarea:focus,select:focus{border-color:var(--silver);background:var(--black4);box-shadow:0 0 0 2px rgba(160,160,160,0.08)}
-input::placeholder,textarea::placeholder{color:#3a3a3a;font-size:13px}
-select option{background:var(--black3)}
-
-/* ── GPS CARD ── */
-.gps-card{
-  background:var(--black2);border:1px solid var(--border);padding:26px;margin-bottom:24px;
-  animation:fadeUp .5s .15s ease both;
-  transition:border-color .3s;
-}
-.gps-card:hover{border-color:var(--border2)}
-
-.sec-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;color:var(--silver2);margin-bottom:20px;display:flex;align-items:center;gap:12px}
-.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
-
-.gps-status{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 16px;background:var(--black3);
-  border:1px solid var(--border);border-left:3px solid var(--border2);
-  margin-bottom:20px;
-  transition:border-left-color .4s, background .3s;
-}
-.gps-status.ok{border-left-color:#888;background:rgba(160,160,160,0.04)}
-.gps-status.err{border-left-color:#444}
-.gps-status.loading{border-left-color:#666}
-.gps-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);flex-shrink:0;transition:background .4s, box-shadow .4s}
-.gps-status.ok .gps-dot{background:var(--silver2);box-shadow:0 0 8px rgba(200,200,200,.4)}
-.gps-status.loading .gps-dot{animation:blink 1s infinite}
-.gps-status-info{flex:1}
-.gps-status-label{font-size:12px;font-weight:600;color:var(--white);margin-bottom:1px;transition:all .3s}
-.gps-status-desc{font-size:10px;color:var(--silver);font-family:'IBM Plex Mono',monospace}
-
-/* ── RESULT GRID ── */
-.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.result-item{
-  background:var(--black3);border:1px solid var(--border);padding:12px 14px;
-  transition:border-color .2s, transform .2s;
-  animation:fadeUp .4s ease both;
-}
-.result-item:nth-child(1){animation-delay:.05s}
-.result-item:nth-child(2){animation-delay:.1s}
-.result-item:nth-child(3){animation-delay:.15s}
-.result-item:nth-child(4){animation-delay:.2s}
-.result-item:nth-child(5){animation-delay:.25s}
-.result-item:nth-child(6){animation-delay:.3s}
-.result-item:nth-child(7){animation-delay:.35s}
-.result-item:nth-child(8){animation-delay:.4s}
-.result-item:nth-child(9){animation-delay:.45s}
-.result-item.full{grid-column:1/-1}
-.result-item:hover{border-color:var(--border2)}
-.ri-label{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#444;letter-spacing:1.5px;margin-bottom:5px;text-transform:uppercase}
-.ri-value{font-size:13px;color:var(--silver2);line-height:1.4;transition:color .3s}
-.ri-value.mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
-.ri-value.empty{color:#2e2e2e}
-.ri-value a{color:var(--silver);text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:11px;word-break:break-all;transition:color .2s}
-.ri-value a:hover{color:var(--white2)}
-
-.acc-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 10px;border:1px solid var(--border2);color:var(--silver);letter-spacing:1px;margin-top:4px;transition:all .3s}
-.acc-badge.high{color:var(--silver2);border-color:#555}
-.acc-badge.low{color:#444;border-color:#282828}
-
-/* ── MAP ── */
-.map-wrap{
-  width:100%;height:200px;background:var(--black3);border:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;overflow:hidden;margin-top:14px;
-  transition:border-color .3s;
-}
-.map-wrap:hover{border-color:var(--border2)}
-.map-wrap iframe{width:100%;height:100%;border:none;filter:grayscale(100%) contrast(1.1);animation:fadeIn .5s ease both}
-.map-empty{font-size:11px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;letter-spacing:1px}
-
-/* ── BUTTONS ── */
-.btn-row{display:flex;gap:10px;margin-top:16px}
-.btn{
-  display:flex;align-items:center;justify-content:center;gap:7px;
-  padding:13px 20px;font-size:11px;font-weight:600;
-  font-family:'IBM Plex Sans',sans-serif;letter-spacing:2px;text-transform:uppercase;
-  border:none;cursor:pointer;
-  transition:all .2s cubic-bezier(.34,1.2,.64,1);
-  position:relative;overflow:hidden;
-}
-.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background .2s}
-.btn:hover::after{background:rgba(255,255,255,0.05)}
-.btn:active{transform:scale(0.98)}
-.btn-primary{background:var(--white);color:var(--black);flex:1}
-.btn-primary:hover{background:var(--silver2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(200,200,200,0.15)}
-.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-outline{background:transparent;color:var(--silver);border:1px solid var(--border2);flex:none}
-.btn-outline:hover{color:var(--white);border-color:var(--silver);transform:translateY(-1px)}
-.btn-copy{background:var(--black3);color:var(--silver);border:1px solid var(--border2);flex:none}
-.btn-copy:hover{color:var(--white);border-color:var(--silver);transform:translateY(-1px)}
-.btn-copy:disabled{opacity:.4;cursor:not-allowed;transform:none}
-
-/* ── HISTORY ── */
-.history-block{
-  background:var(--black2);border:1px solid var(--border);padding:26px;
-  animation:fadeUp .5s .25s ease both;
-}
-.hist-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.hist-count{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--silver);border:1px solid var(--border);padding:3px 12px;letter-spacing:1px}
-
-.hist-card{
-  background:var(--black3);border:1px solid var(--border);border-left:3px solid var(--border2);
-  padding:16px;margin-bottom:10px;
-  transition:border-left-color .25s, transform .2s, box-shadow .2s;
-  animation:slideIn .35s ease both;
-}
-.hist-card:hover{border-left-color:var(--silver);transform:translateX(3px);box-shadow:-3px 0 12px rgba(160,160,160,0.06)}
-.hist-card-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.hist-num{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--border2);flex-shrink:0;min-width:28px;line-height:1;transition:color .2s}
-.hist-card:hover .hist-num{color:var(--silver)}
-.hist-time{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--silver);flex:1}
-.hist-acts{display:flex;gap:7px}
-.icon-btn{width:30px;height:30px;border:1px solid var(--border);background:var(--black2);color:var(--silver);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all .2s;border-radius:2px}
-.icon-btn:hover{border-color:var(--silver2);color:var(--white2);transform:scale(1.1)}
-.icon-btn.del:hover{border-color:#555;color:#aaa;transform:scale(1.1)}
-.hist-body{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.hf{}.hf.full{grid-column:1/-1}
-.hf-lbl{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#3a3a3a;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
-.hf-val{font-size:12px;color:var(--silver2);line-height:1.4}
-.hf-val.mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
-.hf-val a{color:var(--silver);text-decoration:none;font-size:11px;transition:color .2s}
-.hf-val a:hover{color:var(--white2)}
-
-.empty-state{text-align:center;padding:50px 20px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px}
-.empty-state .big{font-size:2rem;margin-bottom:10px;filter:grayscale(1)}
-
-/* ── ADMIN MODAL ── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0);z-index:500;align-items:center;justify-content:center;padding:20px;transition:background .3s}
-.modal-overlay.open{display:flex;background:rgba(0,0,0,0.88)}
-.modal-box{
-  background:var(--black2);border:1px solid var(--border);
-  width:100%;max-width:720px;max-height:90vh;overflow-y:auto;
-  transform:scale(0.95) translateY(20px);opacity:0;
-  transition:transform .3s cubic-bezier(.34,1.2,.64,1), opacity .3s ease;
-}
-.modal-overlay.open .modal-box{transform:scale(1) translateY(0);opacity:1}
-.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--black2);z-index:1}
-.modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:var(--white2)}
-.modal-close{background:none;border:1px solid var(--border);color:var(--silver);width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s;border-radius:2px}
-.modal-close:hover{border-color:var(--silver);color:var(--white);transform:rotate(90deg)}
-.modal-body{padding:22px}
-
-.admin-pw-box{display:flex;flex-direction:column;gap:14px;align-items:center;padding:36px 20px}
-.admin-pw-box p{font-size:12px;color:var(--silver);font-family:'IBM Plex Mono',monospace;letter-spacing:1px}
-
-.admin-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:22px}
-.stat-box{background:var(--black3);border:1px solid var(--border);padding:14px;transition:border-color .2s, transform .2s}
-.stat-box:hover{border-color:var(--border2);transform:translateY(-2px)}
-.stat-num{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:var(--white2);line-height:1}
-.stat-lbl{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--silver);letter-spacing:1px;margin-top:3px}
-
-.admin-user{background:var(--black3);border:1px solid var(--border);padding:16px;margin-bottom:10px;transition:border-color .2s}
-.admin-user:hover{border-color:var(--border2)}
-.admin-user-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.admin-avatar{width:34px;height:34px;background:var(--border2);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--silver2);flex-shrink:0}
-.admin-uname{font-size:14px;font-weight:600;color:var(--white)}
-.admin-umeta{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--silver)}
-.admin-ucount{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--silver);border:1px solid var(--border);padding:2px 10px;margin-left:auto}
-
-.admin-hist{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
-.admin-hist-title{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#333;letter-spacing:2px;margin-bottom:8px}
-.admin-hist-item{padding:10px 12px;background:var(--black2);border-left:2px solid var(--border2);margin-bottom:6px;transition:border-left-color .2s}
-.admin-hist-item:hover{border-left-color:var(--silver)}
-.admin-hist-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px}
-.admin-hist-row.full{grid-template-columns:1fr}
-.ahl{font-size:9px;font-family:'IBM Plex Mono',monospace;color:#333;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
-.ahv{font-size:12px;color:var(--silver2)}
-.ahv.mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
-.ahv a{color:var(--silver);text-decoration:none;font-size:11px;word-break:break-all;transition:color .2s}
-.ahv a:hover{color:var(--white2)}
-.admin-hist-time{font-size:10px;font-family:'IBM Plex Mono',monospace;color:#2e2e2e;margin-top:6px}
-
-/* ── TOAST ── */
-.toast{
-  position:fixed;bottom:80px;right:24px;z-index:9999;
-  background:var(--white2);color:var(--black);
-  padding:12px 18px;font-size:13px;font-weight:600;
-  font-family:'IBM Plex Sans',sans-serif;
-  box-shadow:0 4px 24px rgba(0,0,0,.6);
-  transform:translateX(120%);opacity:0;
-  transition:transform .35s cubic-bezier(.34,1.56,.64,1), opacity .35s ease;
-  max-width:280px;border-left:4px solid var(--black);border-radius:2px;
-}
-.toast.show{transform:translateX(0);opacity:1}
-.toast.err{background:var(--black2);color:var(--white);border-left-color:#666}
-.toast.inf{background:var(--black3);color:var(--silver2);border-left-color:#444}
-
-.spin{display:inline-block;width:11px;height:11px;border:2px solid #333;border-top-color:var(--silver);border-radius:50%;animation:rotate .7s linear infinite}
-
-/* ── ANIMATIONS ── */
-@keyframes rotate{to{transform:rotate(360deg)}}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
-@keyframes musicPulse{0%,100%{transform:scaleY(1);opacity:.7}50%{transform:scaleY(1.8);opacity:1}}
-@keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes authEntrance{from{opacity:0;transform:translateY(30px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-
-
-/* ── IZINKAN BTN ── */
-.izinkan-wrap{
-  margin-bottom:16px;
-  overflow:hidden;
-  transition:max-height .5s cubic-bezier(.4,0,.2,1), opacity .5s ease, margin .5s ease;
-  max-height:80px;
-  opacity:1;
-}
-.izinkan-wrap.hide{
-  max-height:0;
-  opacity:0;
-  margin-bottom:0;
-}
-.btn-izinkan{
-  width:100%;
-  background:transparent;
-  border:1px solid #444;
-  color:var(--silver2);
-  padding:13px 20px;
-  font-size:11px;
-  font-weight:600;
-  font-family:'IBM Plex Sans',sans-serif;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  transition:all .2s;
-  animation:fadeUp .4s ease both;
-}
-.btn-izinkan:hover{border-color:var(--silver);color:var(--white);background:rgba(255,255,255,0.03)}
-.btn-izinkan:active{transform:scale(0.98)}
-.izinkan-dot{width:7px;height:7px;border-radius:50%;background:#666;transition:background .3s}
-
-/* ── FOOTER ── */
-.site-footer{
-  text-align:center;
-  padding:32px 20px 40px;
-  border-top:1px solid var(--border);
-  margin-top:10px;
-}
-.footer-notice{
-  font-size:11px;
-  color:var(--silver);
-  font-family:'IBM Plex Mono',monospace;
-  line-height:1.8;
-  letter-spacing:0.5px;
-  margin-bottom:14px;
-  max-width:500px;
-  margin-left:auto;
-  margin-right:auto;
-}
-.footer-notice span{color:var(--silver2);font-weight:600}
-.footer-dev{
-  font-size:10px;
-  color:#3a3a3a;
-  font-family:'IBM Plex Mono',monospace;
-  letter-spacing:2px;
-  text-transform:uppercase;
-}
-.footer-dev b{color:#555}
-
-@media(max-width:580px){
-  .result-grid,.hist-body,.admin-stats,.admin-hist-row{grid-template-columns:1fr}
-  .result-item.full,.hf.full,.admin-hist-row.full{grid-column:1/-1}
-  .btn-row{flex-direction:column}
-  .gps-card,.history-block{padding:16px}
-  .topbar{flex-wrap:wrap;gap:8px}
-  #music-bar{width:calc(100% - 40px);border-radius:12px}
-}
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --silver: #c0c0c0;
+    --silver2: #888;
+    --white: #f5f5f5;
+    --accent: #e8e8e8;
+    --glow: rgba(192,192,192,0.15);
+    --red: #ff3b30;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:''; position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.5;
+  }
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 48px;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 3px;
+    color: var(--white); line-height: 1;
+  }
+  .logo span { color: var(--silver2); }
+  .header-status {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; color: var(--silver2); letter-spacing: 1px;
+  }
+  .dot-live {
+    width: 7px; height: 7px;
+    background: #00ff88; border-radius: 50%;
+    animation: pulse-green 2s infinite;
+  }
+  @keyframes pulse-green {
+    0%,100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(0,255,136,0); }
+  }
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 120px 48px 60px;
+    position: relative; text-align: center;
+  }
+  .hero-bg-lines {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 80px 80px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black, transparent);
+    pointer-events: none;
+  }
+  .hero-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; letter-spacing: 3px; color: var(--silver2);
+    text-transform: uppercase; margin-bottom: 24px;
+    opacity: 0; animation: fadeUp 0.8s 0.2s forwards;
+  }
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(64px, 10vw, 140px); line-height: 0.9; letter-spacing: 4px;
+    background: linear-gradient(135deg, #fff 30%, #888 70%, #fff 90%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 12px; opacity: 0; animation: fadeUp 0.8s 0.4s forwards;
+  }
+  .hero-sub {
+    font-size: 15px; color: var(--silver2); max-width: 480px; line-height: 1.7;
+    margin: 0 auto 48px; opacity: 0; animation: fadeUp 0.8s 0.6s forwards;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .scroll-cta {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px;
+    color: var(--silver2); cursor: pointer;
+    opacity: 0; animation: fadeUp 0.8s 0.8s forwards; transition: color 0.3s;
+  }
+  .scroll-cta:hover { color: var(--white); }
+  .scroll-cta .arrow { animation: bounceY 1.5s infinite; }
+  @keyframes bounceY {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(6px); }
+  }
+  .workspace { max-width: 1200px; margin: 0 auto; padding: 0 32px 120px; }
+  .section-label {
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 3px;
+    color: var(--silver2); text-transform: uppercase; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::after { content:''; flex: 1; height: 1px; background: var(--border); }
+  .upload-zone {
+    border: 1px dashed var(--border); border-radius: 16px; padding: 48px;
+    text-align: center; position: relative; overflow: hidden; cursor: pointer;
+    transition: all 0.3s; background: var(--surface); margin-bottom: 32px;
+  }
+  .upload-zone::before {
+    content:''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 40% at 50% 50%, var(--glow), transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .upload-zone:hover { border-color: var(--silver2); }
+  .upload-zone:hover::before { opacity: 1; }
+  .upload-zone.drag-over { border-color: var(--silver); background: var(--surface2); }
+  .upload-zone.drag-over::before { opacity: 1; }
+  .upload-icon {
+    width: 56px; height: 56px; border: 1px solid var(--border); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px; font-size: 24px; transition: transform 0.3s, border-color 0.3s;
+  }
+  .upload-zone:hover .upload-icon { transform: scale(1.05); border-color: var(--silver2); }
+  .upload-title { font-size: 18px; font-weight: 500; margin-bottom: 8px; color: var(--white); }
+  .upload-desc { font-size: 13px; color: var(--silver2); margin-bottom: 20px; }
+  .upload-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px;
+    background: transparent; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--silver); font-family: 'Space Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; cursor: pointer; transition: all 0.25s;
+  }
+  .upload-btn:hover { background: var(--surface2); border-color: var(--silver2); color: var(--white); }
+  #fileInput { display: none; }
+  .photo-counter { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .counter-badge { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--silver2); }
+  .counter-badge span { color: var(--white); font-weight: 700; }
+  .clear-all-btn {
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px;
+    color: var(--silver2); background: none; border: none; cursor: pointer;
+    transition: color 0.2s; display: none;
+  }
+  .clear-all-btn:hover { color: var(--red); }
+  .photo-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px; margin-bottom: 32px;
+  }
+  .photo-thumb {
+    aspect-ratio: 1; border-radius: 8px; overflow: hidden; position: relative;
+    border: 1px solid var(--border); animation: thumbIn 0.3s ease;
+  }
+  @keyframes thumbIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb .remove-btn {
+    position: absolute; top: 4px; right: 4px; width: 20px; height: 20px;
+    background: rgba(0,0,0,0.8); border: none; border-radius: 50%; color: var(--white);
+    font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .photo-thumb:hover .remove-btn { opacity: 1; }
+  .prompt-container { position: relative; margin-bottom: 24px; }
+  .prompt-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .prompt-textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 20px 60px; font-family: 'DM Sans', sans-serif; font-size: 15px;
+    color: var(--white); resize: none; min-height: 160px; line-height: 1.6;
+    transition: border-color 0.3s, box-shadow 0.3s; outline: none;
+  }
+  .prompt-textarea::placeholder { color: var(--silver2); }
+  .prompt-textarea:focus { border-color: var(--silver2); box-shadow: 0 0 0 3px rgba(192,192,192,0.06); }
+  .prompt-toolbar {
+    position: absolute; bottom: 12px; left: 12px; right: 12px;
+    display: flex; align-items: center; justify-content: space-between; pointer-events: none;
+  }
+  .char-count { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--silver2); }
+  .generate-btn {
+    pointer-events: all; display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 28px; background: var(--white); color: var(--bg);
+    border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif;
+    font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.25s; letter-spacing: 0.3px;
+  }
+  .generate-btn:hover { background: var(--silver); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,255,255,0.1); }
+  .generate-btn:active { transform: translateY(0); }
+  .generate-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .generate-btn .btn-icon { font-size: 16px; }
+  .loading-bar {
+    height: 2px; background: linear-gradient(90deg, transparent, var(--silver), transparent);
+    background-size: 200% 100%; animation: shimmer 1.5s infinite; display: none;
+    margin-bottom: 24px; border-radius: 2px;
+  }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  .results-section { margin-top: 48px; }
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    overflow: hidden; margin-bottom: 32px; animation: resultIn 0.5s ease;
+  }
+  @keyframes resultIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .result-header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .result-meta { display: flex; align-items: center; gap: 12px; }
+  .result-num { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--silver2); }
+  .result-prompt-preview { font-size: 13px; color: var(--silver); max-width: 500px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .result-actions { display: flex; gap: 8px; }
+  .action-btn {
+    padding: 7px 16px; background: transparent; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--silver2); font-family: 'Space Mono', monospace; font-size: 10px;
+    letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
+  }
+  .action-btn:hover { border-color: var(--silver2); color: var(--white); }
+  .action-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .result-text {
+    padding: 24px; border-top: 1px solid var(--border);
+    font-size: 15px; line-height: 1.8; color: var(--silver);
+  }
+  .result-text strong { color: var(--white); }
+  .result-text code {
+    font-family: 'Space Mono', monospace; font-size: 12px;
+    background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: var(--accent);
+  }
+  .loading-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 80px 40px; gap: 24px; color: var(--silver2);
+  }
+  .spinner {
+    width: 44px; height: 44px; border: 2px solid var(--border);
+    border-top-color: var(--silver); border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: 2px; color: var(--silver2); }
+  .loading-dots::after { content: '...'; animation: dots 1.5s infinite; }
+  @keyframes dots { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
+  footer {
+    text-align: center; padding: 40px; border-top: 1px solid var(--border);
+    color: var(--silver2); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px;
+  }
+  .notif {
+    position: fixed; bottom: 32px; right: 32px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px;
+    font-size: 13px; color: var(--white); z-index: 999; animation: notifIn 0.3s ease; display: none;
+  }
+  .notif.show { display: block; }
+  .notif.error { border-color: var(--red); color: var(--red); }
+  @keyframes notifIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--silver2); }
+  .revision-panel {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; margin-top: 16px; display: none;
+  }
+  .revision-panel.open { display: block; animation: resultIn 0.3s ease; }
+  .revision-input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--white);
+    resize: none; min-height: 80px; outline: none; transition: border-color 0.3s;
+  }
+  .revision-input::placeholder { color: var(--silver2); }
+  .revision-input:focus { border-color: var(--silver2); }
+  .revision-actions-row { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  .rev-submit-btn {
+    padding: 9px 20px; background: var(--white); color: var(--bg); border: none; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s;
+  }
+  .rev-submit-btn:hover { background: var(--silver); }
+  .rev-cancel-btn {
+    padding: 9px 20px; background: transparent; color: var(--silver2);
+    border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s;
+  }
+  .rev-cancel-btn:hover { border-color: var(--silver2); color: var(--white); }
+  .empty-state {
+    text-align: center; padding: 80px 40px; color: var(--silver2);
+    border: 1px dashed var(--border); border-radius: 20px; margin-top: 48px; display: none;
+  }
+  .empty-state.show { display: block; }
+  .empty-icon { font-size: 48px; margin-bottom: 20px; opacity: 0.4; }
+  .empty-title { font-size: 18px; color: var(--silver); margin-bottom: 8px; }
+  .empty-desc { font-size: 13px; }
 </style>
 </head>
 <body>
-
-<!-- AUDIO -->
-<audio id="bgMusic" loop preload="auto">
-  <source src="https://files.catbox.moe/m5ni3s.mp3" type="audio/mpeg"/>
-</audio>
-
-<!-- MUSIC BAR -->
-<div id="music-bar">
-  <div class="music-dot"></div>
-  <div class="music-dot"></div>
-  <div class="music-dot"></div>
-  <div class="music-label">♪ NOW PLAYING</div>
-  <input type="range" class="music-vol" id="volSlider" min="0" max="1" step="0.05" value="0.35" oninput="setVol(this.value)" title="Volume"/>
-  <button class="music-toggle" id="musicToggle" onclick="toggleMusic()" title="Play/Pause">⏸</button>
-</div>
-
-<!-- ═══ AUTH ═══ -->
-<div id="screen-auth" class="screen active">
-  <div class="auth-box">
-    <div class="auth-logo">Paket<span>Track</span></div>
-    <div class="auth-sub">PENCATAT LOKASI GPS AKURAT</div>
-    <div class="auth-card">
-      <div class="auth-tabs">
-        <button class="auth-tab active" onclick="switchTab('login')">Login</button>
-        <button class="auth-tab" onclick="switchTab('register')">Buat Akun</button>
-      </div>
-      <div class="auth-form active" id="form-login">
-        <div class="fg"><label>Username</label><input type="text" id="lu" placeholder="Masukkan username" autocomplete="username"/></div>
-        <div class="fg"><label>Password</label><input type="password" id="lp" placeholder="Masukkan password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
-        <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">Masuk</button>
-        <div style="display:flex;align-items:center;gap:10px;margin:2px 0">
-          <div style="flex:1;height:1px;background:var(--border)"></div>
-          <span style="font-size:10px;color:#3a3a3a;font-family:'IBM Plex Mono',monospace;letter-spacing:1px">ATAU</span>
-          <div style="flex:1;height:1px;background:var(--border)"></div>
-        </div>
-        <button class="btn btn-outline" style="width:100%;border-color:var(--border2)" onclick="doGoogleLogin()">
-          <svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-          Masuk dengan Google
-        </button>
-        <div class="auth-hint">Belum punya akun? <b style="color:var(--silver2);cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1" onclick="switchTab('register')">Buat Akun</b></div>
-      </div>
-      <div class="auth-form" id="form-register">
-        <div class="fg"><label>Username</label><input type="text" id="ru" placeholder="Buat username" autocomplete="username"/></div>
-        <div class="fg"><label>Password</label><input type="password" id="rp" placeholder="Buat password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"/></div>
-        <button class="btn btn-primary" id="registerBtn" onclick="doRegister()">Buat Akun &amp; Masuk</button>
-        <div style="display:flex;align-items:center;gap:10px;margin:2px 0">
-          <div style="flex:1;height:1px;background:var(--border)"></div>
-          <span style="font-size:10px;color:#3a3a3a;font-family:'IBM Plex Mono',monospace;letter-spacing:1px">ATAU</span>
-          <div style="flex:1;height:1px;background:var(--border)"></div>
-        </div>
-        <button class="btn btn-outline" style="width:100%;border-color:var(--border2)" onclick="doGoogleLogin()">
-          <svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-          Daftar dengan Google
-        </button>
-        <div class="auth-hint">Sudah punya akun? <b style="color:var(--silver2);cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1" onclick="switchTab('login')">Login</b></div>
-      </div>
+<header>
+  <div class="logo">Generate<span> Photo</span></div>
+  <div class="header-status"><div class="dot-live"></div>AI POWERED · LIVE</div>
+</header>
+<section class="hero">
+  <div class="hero-bg-lines"></div>
+  <div class="hero-tag">✦ AI Visual Intelligence</div>
+  <h1 class="hero-title">Generate Photo<br>For Prompt</h1>
+  <p class="hero-sub">Describe anything. Upload up to 30 photos. Let AI transform your vision into stunning visuals — fully revisable.</p>
+  <div class="scroll-cta" onclick="document.getElementById('workspace').scrollIntoView({behavior:'smooth'})">
+    <span>START CREATING</span><span class="arrow">↓</span>
+  </div>
+</section>
+<div class="workspace" id="workspace">
+  <div class="section-label">01 — Upload Photos (Optional, max 30)</div>
+  <div class="upload-zone" id="uploadZone">
+    <div class="upload-icon">📸</div>
+    <div class="upload-title">Drop photos here</div>
+    <div class="upload-desc">PNG, JPG, WEBP — up to 30 photos</div>
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">⊕ Choose Files</button>
+    <input type="file" id="fileInput" multiple accept="image/*"/>
+  </div>
+  <div class="photo-counter" id="photoCounter" style="display:none">
+    <div class="counter-badge"><span id="photoCount">0</span> / 30 photos uploaded</div>
+    <button class="clear-all-btn" id="clearAllBtn">✕ Clear All</button>
+  </div>
+  <div class="photo-grid" id="photoGrid"></div>
+  <div class="section-label">02 — Your Prompt</div>
+  <div class="prompt-container">
+    <div class="prompt-label-row"></div>
+    <textarea class="prompt-textarea" id="promptInput"
+      placeholder="Describe what you want... e.g. 'Cinematic night scene, neon reflections, dark moody atmosphere, ultra detailed, editorial quality'"
+      oninput="updateCharCount()"></textarea>
+    <div class="prompt-toolbar">
+      <span class="char-count" id="charCount">0 chars</span>
+      <button class="generate-btn" id="generateBtn" onclick="generate()">
+        <span class="btn-icon">⚡</span> Generate
+      </button>
     </div>
+  </div>
+  <div class="loading-bar" id="loadingBar"></div>
+  <div id="resultsContainer"></div>
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">✦</div>
+    <div class="empty-title">Ready when you are</div>
+    <div class="empty-desc">Write a prompt above and hit Generate</div>
   </div>
 </div>
-
-<!-- ═══ MAIN ═══ -->
-<div id="screen-main" class="screen">
-  <div class="topbar">
-    <div class="topbar-logo">Paket<span>Track</span></div>
-    <div class="topbar-user" id="tbUser"></div>
-    <button class="topbar-btn hi" onclick="openAdmin()">⊞ List Pantun</button>
-    <button class="topbar-btn" onclick="doLogout()">Keluar</button>
-  </div>
-
-  <div class="wrap">
-    <!-- GPS CARD -->
-    <div class="gps-card">
-      <div class="sec-title">Lokasi GPS</div>
-      <div class="gps-status" id="gpsStatus">
-        <div class="gps-dot" id="gpsDot"></div>
-        <div class="gps-status-info">
-          <div class="gps-status-label" id="gpsLabel">Mendeteksi lokasi...</div>
-          <div class="gps-status-desc" id="gpsDesc">Harap izinkan akses lokasi di browser</div>
-        </div>
-      </div>
-
-      <div class="result-grid" id="resultGrid">
-        <div class="result-item"><div class="ri-label">Latitude</div><div class="ri-value mono empty" id="rLat">—</div></div>
-        <div class="result-item"><div class="ri-label">Longitude</div><div class="ri-value mono empty" id="rLng">—</div></div>
-        <div class="result-item"><div class="ri-label">Akurasi</div><div class="ri-value mono empty" id="rAcc">—</div></div>
-        <div class="result-item"><div class="ri-label">Kode Pos</div><div class="ri-value empty" id="rPost">—</div></div>
-        <div class="result-item full"><div class="ri-label">Jalan / Gang</div><div class="ri-value empty" id="rRoad">—</div></div>
-        <div class="result-item"><div class="ri-label">Kelurahan / Desa</div><div class="ri-value empty" id="rVillage">—</div></div>
-        <div class="result-item"><div class="ri-label">Kecamatan</div><div class="ri-value empty" id="rDistrict">—</div></div>
-        <div class="result-item"><div class="ri-label">Kota / Kabupaten</div><div class="ri-value empty" id="rCity">—</div></div>
-        <div class="result-item"><div class="ri-label">Provinsi</div><div class="ri-value empty" id="rState">—</div></div>
-        <div class="result-item full"><div class="ri-label">Alamat Lengkap</div><div class="ri-value empty" id="rFull">—</div></div>
-        <div class="result-item full"><div class="ri-label">Link Google Maps</div><div class="ri-value empty" id="rLink">—</div></div>
-      </div>
-      <div id="accBadge"></div>
-      <div class="map-wrap" id="mapWrap"><span class="map-empty">[ MENUNGGU GPS ]</span></div>
-
-      <div class="izinkan-wrap" id="izinkanWrap">
-        <button class="btn-izinkan" id="izinkanBtn" onclick="mintaIzin()">
-          <div class="izinkan-dot" id="izinkanDot"></div>
-          IZINKAN AKSES LOKASI
-        </button>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn btn-outline" onclick="refreshGPS()">↺ Perbarui</button>
-        <button class="btn btn-copy" id="copyBtn" onclick="copyAll()" disabled>⊕ Salin</button>
-        <button class="btn btn-primary" id="saveBtn" onclick="simpan()" disabled>Simpan Lokasi</button>
-      </div>
-    </div>
-
-    <!-- HISTORY -->
-    <div class="history-block">
-      <div class="hist-top">
-        <div class="sec-title" style="margin:0;flex:1">History</div>
-        <div class="hist-count" id="histCount">0 LOK</div>
-      </div>
-      <div id="histList"></div>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <div class="site-footer">
-    <div class="footer-notice">
-      <span>Pemberitahuan :</span> Jika Lokasi Atau Alamat Tidak Akurat Harap Menekan Tombol Perbarui,
-      Lebih Alangkah Baik Nya Menekan Fitur Nya Saat Kamu Posisi Nya Sedang Berada Di Luar Ruangan
-    </div>
-    <div class="footer-dev">Developer Website : <b>Nazam Official</b></div>
-  </div>
-
-</div>
-
-<!-- ═══ ADMIN MODAL ═══ -->
-<div class="modal-overlay" id="adminModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title">List Pantun — Admin</div>
-      <button class="modal-close" onclick="closeAdmin()">✕</button>
-    </div>
-    <div class="modal-body" id="adminBody"></div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<!-- ═══════════════════════════════════════════════
-     FIREBASE SDK
-     ═══════════════════════════════════════════════ -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-
+<footer>GENERATE PHOTO FOR PROMPT · POWERED BY AI · ALL RIGHTS RESERVED</footer>
+<div class="notif" id="notif"></div>
 <script>
-// ═══════════════════════════════════════════════════
-//  FIREBASE CONFIG
-//  Ganti semua nilai "GANTI_INI" dengan config
-//  dari Firebase console kamu.
-//  Panduan lengkap ada di bagian bawah file ini.
-// ═══════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey:            "AIzaSyCbkI0tVsGPokMW_vvifNbbBlUxO0Jz0Cw",
-  authDomain:        "base-6d704.firebaseapp.com",
-  databaseURL:       "https://base-6d704-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "base-6d704",
-  storageBucket:     "base-6d704.firebasestorage.app",
-  messagingSenderId: "931844582272",
-  appId:             "1:931844582272:web:75a076baa4369ccc6daf65"
-};
-
-firebase.initializeApp(firebaseConfig);
-const fdb = firebase.database();
-
-// ── Firebase helpers ──────────────────────────────
-const userRef  = (un) => fdb.ref('users/' + un);
-const recsRef  = (un) => fdb.ref('records/' + un);
-const recRef   = (un, id) => fdb.ref('records/' + un + '/' + id);
-const allUsersRef = () => fdb.ref('users');
-
-async function fbGetUser(un) {
-  const snap = await userRef(un).once('value');
-  return snap.val();
-}
-async function fbSetUser(un, data) {
-  await userRef(un).set(data);
-}
-async function fbGetAllUsers() {
-  const snap = await allUsersRef().once('value');
-  return snap.val() || {};
-}
-async function fbGetRecs(un) {
-  const snap = await recsRef(un).once('value');
-  const val = snap.val();
-  if (!val) return [];
-  return Object.values(val).sort((a, b) => b.id - a.id);
-}
-async function fbSaveRec(un, rec) {
-  await recRef(un, String(rec.id)).set(rec);
-}
-async function fbDeleteRec(un, id) {
-  await recRef(un, String(id)).remove();
-}
-
-// ── Session (hanya simpan username di localStorage) ──
-const LS = {
-  get: k => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } },
-  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
-  del: k => localStorage.removeItem(k)
-};
-const getSess   = () => LS.get('pt_sess');
-const setSess   = un => LS.set('pt_sess', { username: un, at: new Date().toISOString() });
-const clearSess = () => LS.del('pt_sess');
-
-const ADMIN_PW = 'K98T';
-
-// ═══════════════════ MUSIC
-const audio = document.getElementById('bgMusic');
-let musicPlaying = false;
-audio.volume = 0.35;
-
-function tryPlayMusic() {
-  audio.play().then(() => {
-    musicPlaying = true;
-    g('musicToggle').textContent = '⏸';
-    g('music-bar').classList.add('visible');
-  }).catch(() => {});
-}
-function toggleMusic() {
-  if (musicPlaying) { audio.pause(); musicPlaying = false; g('musicToggle').textContent = '▶'; }
-  else { audio.play(); musicPlaying = true; g('musicToggle').textContent = '⏸'; }
-}
-function setVol(v) { audio.volume = parseFloat(v); }
-
-document.addEventListener('click', function startMusic() {
-  tryPlayMusic();
-  document.removeEventListener('click', startMusic);
-}, { once: false });
-document.addEventListener('keydown', function startMusic() {
-  tryPlayMusic();
-  document.removeEventListener('keydown', startMusic);
-}, { once: true });
-
-// ═══════════════════ AUTH
-let CU = null;
-
-function switchTab(t) {
-  document.querySelectorAll('.auth-tab').forEach((el, i) =>
-    el.classList.toggle('active', (i === 0 && t === 'login') || (i === 1 && t === 'register'))
-  );
-  g('form-login').classList.toggle('active', t === 'login');
-  g('form-register').classList.toggle('active', t === 'register');
-}
-
-async function doLogin() {
-  const un = g('lu').value.trim().toLowerCase();
-  const pw = g('lp').value;
-  if (!un || !pw) { toast('Username & password wajib.', 'err'); return; }
-
-  const btn = g('loginBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Memuat...';
-
-  try {
-    const userData = await fbGetUser(un);
-    if (!userData) { toast('Username tidak ditemukan.', 'err'); return; }
-    if (userData.pw !== pw) { toast('Password salah.', 'err'); return; }
-    loginOK(un);
-  } catch (err) {
-    toast('Gagal koneksi. Cek internet.', 'err');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Masuk';
-  }
-}
-
-async function doRegister() {
-  const un = g('ru').value.trim().toLowerCase().replace(/\s+/g, '_');
-  const pw = g('rp').value;
-  if (!un || !pw) { toast('Username & password wajib.', 'err'); return; }
-  if (un.length < 3) { toast('Username min 3 karakter.', 'err'); return; }
-  if (pw.length < 4) { toast('Password min 4 karakter.', 'err'); return; }
-
-  const btn = g('registerBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Memuat...';
-
-  try {
-    const existing = await fbGetUser(un);
-    if (existing) { toast('Username sudah dipakai.', 'err'); return; }
-    await fbSetUser(un, { pw, createdAt: new Date().toISOString() });
-    loginOK(un);
-  } catch (err) {
-    toast('Gagal koneksi. Cek internet.', 'err');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Buat Akun & Masuk';
-  }
-}
-
-function loginOK(un) {
-  CU = un;
-  setSess(un);
-  const auth = g('screen-auth');
-  auth.style.transition = 'opacity .3s ease, transform .3s ease';
-  auth.style.opacity = '0';
-  auth.style.transform = 'scale(.97)';
-  setTimeout(() => {
-    auth.classList.remove('active');
-    auth.style.opacity = '';
-    auth.style.transform = '';
-    g('screen-main').classList.add('active');
-    g('tbUser').textContent = un.toUpperCase();
-    renderHist();
-    startGPS();
-    tryPlayMusic();
-  }, 300);
-  toast('Selamat datang, ' + un + '!');
-}
-
-
-async function doGoogleLogin() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  try {
-    const result = await firebase.auth().signInWithPopup(provider);
-    const user = result.user;
-    const un = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    const displayName = user.displayName || un;
-
-    // Cek apakah user sudah ada di database
-    const existing = await fbGetUser(un);
-    if (!existing) {
-      // Buat user baru otomatis
-      await fbSetUser(un, {
-        pw: '__google__',
-        createdAt: new Date().toISOString(),
-        displayName: displayName,
-        email: user.email,
-        loginMethod: 'google'
-      });
-    }
-    loginOK(un);
-  } catch (err) {
-    if (err.code === 'auth/popup-closed-by-user') return;
-    toast('Login Google gagal. Coba lagi.', 'err');
-  }
-}
-
-function doLogout() {
-  if (!confirm('Yakin keluar?')) return;
-  clearSess();
-  CU = null;
-  coords = null;
-  gpsOk = false;
-  geoData = null;
-  g('screen-main').classList.remove('active');
-  g('screen-auth').classList.add('active');
-  g('lu').value = '';
-  g('lp').value = '';
-  ['rLat','rLng','rAcc','rPost','rRoad','rVillage','rDistrict','rCity','rState','rFull','rLink'].forEach(id => {
-    const el = g(id);
-    if (el) { el.className = 'ri-value mono empty'; el.textContent = '—'; }
-  });
-  g('mapWrap').innerHTML = '<span class="map-empty">[ MENUNGGU GPS ]</span>';
-  g('accBadge').innerHTML = '';
-  g('saveBtn').disabled = true;
-  g('copyBtn').disabled = true;
-  setStatus('', 'GPS Belum Aktif', '');
-  toast('Berhasil keluar.', 'inf');
-}
-
-// ── Auto-login saat halaman dibuka ──────────────────
-// Auto-login: cek session localStorage → verifikasi ke Firebase
-window.addEventListener('DOMContentLoaded', async () => {
-  const s = getSess();
-  if (s && s.username) {
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
-    try {
-      const userData = await Promise.race([fbGetUser(s.username), timeout]);
-      if (userData) {
-        loginOK(s.username);
-        return;
-      } else {
-        clearSess();
-      }
-    } catch (err) {
-      clearSess();
-    }
-  }
+let uploadedPhotos = [];
+let resultCounter = 0;
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const photoGrid = document.getElementById('photoGrid');
+const photoCounter = document.getElementById('photoCounter');
+const photoCountEl = document.getElementById('photoCount');
+const clearAllBtn = document.getElementById('clearAllBtn');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); addFiles([...e.dataTransfer.files]); });
+uploadZone.addEventListener('click', e => {
+  if (e.target === uploadZone || e.target.closest('.upload-icon') || e.target.classList.contains('upload-title') || e.target.classList.contains('upload-desc')) fileInput.click();
 });
-
-
-// ═══════════════════ IZINKAN
-function cekIzinGPS() {
-  if (!navigator.permissions) { sembunyikanIzinkan(); return; }
-  navigator.permissions.query({ name: 'geolocation' }).then(result => {
-    if (result.state === 'granted') {
-      sembunyikanIzinkan();
-    } else {
-      tampilkanIzinkan();
-      result.onchange = () => {
-        if (result.state === 'granted') sembunyikanIzinkan();
-        else tampilkanIzinkan();
-      };
-    }
-  }).catch(() => sembunyikanIzinkan());
-}
-
-function tampilkanIzinkan() {
-  const wrap = document.getElementById('izinkanWrap');
-  const dot = document.getElementById('izinkanDot');
-  if (wrap) { wrap.classList.remove('hide'); }
-  if (dot) { dot.style.background = '#666'; }
-}
-
-function sembunyikanIzinkan() {
-  const wrap = document.getElementById('izinkanWrap');
-  if (wrap) {
-    wrap.classList.add('hide');
-  }
-}
-
-function mintaIzin() {
-  if (!navigator.geolocation) {
-    toast('Browser tidak support GPS.', 'err');
-    return;
-  }
-  setStatus('loading', 'Meminta Izin Lokasi...', 'Harap izinkan di popup yang muncul');
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      sembunyikanIzinkan();
-      applyPos(pos);
-      toast('Izin diberikan!');
-    },
-    err => {
-      const m = {
-        1: 'Izin ditolak. Buka pengaturan browser untuk izinkan.',
-        2: 'Posisi tidak tersedia.',
-        3: 'Timeout. Coba lagi.'
-      };
-      setStatus('err', 'GPS Gagal', m[err.code] || err.message);
-      toast(m[err.code] || 'Gagal.', 'err');
-    },
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-  );
-}
-
-// ═══════════════════ GPS
-let coords = null, gpsOk = false, geoData = null;
-
-function startGPS() {
-  cekIzinGPS();
-  if (!navigator.geolocation) {
-    setStatus('err', 'GPS Tidak Didukung', 'Browser ini tidak support GPS');
-    return;
-  }
-  setStatus('loading', 'Mendeteksi Lokasi...', 'Izinkan akses lokasi di popup browser');
-  navigator.geolocation.getCurrentPosition(
-    pos => { gpsOk = true; applyPos(pos); },
-    err => {
-      const m = {
-        1: 'Izin ditolak. Izinkan di pengaturan browser.',
-        2: 'Posisi tidak tersedia.',
-        3: 'Timeout. Coba lagi.'
-      };
-      setStatus('err', 'GPS Gagal', m[err.code] || err.message);
-      toast(m[err.code] || 'GPS gagal.', 'err');
-    },
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-  );
-}
-
-function refreshGPS() {
-  if (!navigator.geolocation) return;
-  setStatus('loading', 'Memperbarui Lokasi...', 'Sedang mengambil posisi terbaru');
-  navigator.geolocation.getCurrentPosition(
-    pos => { applyPos(pos); toast('Lokasi diperbarui!'); },
-    () => toast('Gagal perbarui.', 'err'),
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-  );
-}
-
-function applyPos(pos) {
-  const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
-  coords = { lat, lng, acc };
-
-  animateValue('rLat', lat.toFixed(7));
-  animateValue('rLng', lng.toFixed(7));
-  animateValue('rAcc', '±' + Math.round(acc) + 'm');
-
-  const hi = acc <= 20, med = acc <= 100;
-  g('accBadge').innerHTML = `<span class="acc-badge ${hi ? 'high' : med ? '' : 'low'}">${hi ? '✓ AKURASI TINGGI' : med ? '~ AKURASI SEDANG' : '✗ AKURASI RENDAH'} (${Math.round(acc)}m)</span>`;
-
-  const mlink = `https://maps.google.com/maps?q=${lat},${lng}`;
-  const rl = g('rLink');
-  rl.className = 'ri-value';
-  rl.innerHTML = `<a href="${mlink}" target="_blank">${mlink}</a>`;
-
-  setStatus('ok', 'GPS Aktif', `${lat.toFixed(5)}, ${lng.toFixed(5)} · ${new Date().toLocaleTimeString('id-ID')}`);
-  g('mapWrap').innerHTML = `<iframe src="https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed" allowfullscreen loading="lazy"></iframe>`;
-
-  reverseGeo(lat, lng);
-}
-
-function animateValue(id, val) {
-  const el = g(id);
-  el.style.transition = 'opacity .2s ease';
-  el.style.opacity = '0';
-  setTimeout(() => {
-    el.className = 'ri-value mono';
-    el.textContent = val;
-    el.style.opacity = '1';
-  }, 200);
-}
-
-async function reverseGeo(lat, lng) {
-  ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id => {
-    g(id).className = 'ri-value';
-    g(id).innerHTML = '<span class="spin"></span>';
+fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+clearAllBtn.addEventListener('click', clearPhotos);
+function addFiles(files) {
+  const imageFiles = files.filter(f => f.type.startsWith('image/'));
+  const remaining = 30 - uploadedPhotos.length;
+  if (remaining === 0) { showNotif('Max 30 photos reached!', true); return; }
+  const toAdd = imageFiles.slice(0, remaining);
+  if (imageFiles.length > remaining) showNotif(`Only ${remaining} more allowed. Added ${remaining}.`, true);
+  toAdd.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const base64 = e.target.result.split(',')[1];
+      const url = e.target.result;
+      const id = Date.now() + Math.random();
+      uploadedPhotos.push({id, file, base64, url, type: file.type});
+      renderPhoto({id, url});
+      updatePhotoCounter();
+    };
+    reader.readAsDataURL(file);
   });
+}
+function renderPhoto({id, url}) {
+  const div = document.createElement('div');
+  div.className = 'photo-thumb'; div.dataset.id = id;
+  div.innerHTML = `<img src="${url}" alt=""/><button class="remove-btn" onclick="removePhoto('${id}')">✕</button>`;
+  photoGrid.appendChild(div);
+}
+function removePhoto(id) {
+  uploadedPhotos = uploadedPhotos.filter(p => String(p.id) !== String(id));
+  const el = photoGrid.querySelector(`[data-id="${id}"]`);
+  if (el) el.remove();
+  updatePhotoCounter();
+}
+function clearPhotos() { uploadedPhotos = []; photoGrid.innerHTML = ''; updatePhotoCounter(); }
+function updatePhotoCounter() {
+  const count = uploadedPhotos.length;
+  photoCountEl.textContent = count;
+  photoCounter.style.display = count > 0 ? 'flex' : 'none';
+  clearAllBtn.style.display = count > 0 ? 'block' : 'none';
+}
+function updateCharCount() {
+  document.getElementById('charCount').textContent = `${document.getElementById('promptInput').value.length} chars`;
+}
+async function generate() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) { showNotif('Please enter a prompt!', true); return; }
+  const btn = document.getElementById('generateBtn');
+  const loadingBar = document.getElementById('loadingBar');
+  btn.disabled = true; loadingBar.style.display = 'block';
+  const id = ++resultCounter;
+  const cardId = `result-${id}`;
+  const card = createLoadingCard(id, prompt);
+  document.getElementById('resultsContainer').prepend(card);
+  document.getElementById('emptyState').classList.remove('show');
   try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      { headers: { 'Accept-Language': 'id' } }
-    );
-    const d = await r.json();
-    const a = d.address || {};
-    geoData = d;
-
-    const road       = a.road || a.pedestrian || a.footway || a.path || a.residential || '';
-    const houseNum   = a.house_number ? a.house_number + ' ' : '';
-    const village    = a.village || a.suburb || a.neighbourhood || a.quarter || '';
-    const subdistrict = a.city_district || a.district || '';
-    const district   = a.county || a.state_district || a.municipality || '';
-    const city       = a.city || a.town || a.municipality || district || '';
-    const state      = a.state || '';
-    const postcode   = a.postcode || '';
-    const full       = d.display_name || '';
-
-    const fields = [
-      ['rRoad',     (houseNum + road) || '—'],
-      ['rVillage',  village || '—'],
-      ['rDistrict', subdistrict || district || '—'],
-      ['rCity',     city || '—'],
-      ['rState',    state || '—'],
-      ['rPost',     postcode || '—'],
-      ['rFull',     full || '—']
-    ];
-    fields.forEach(([id, val], i) => {
-      setTimeout(() => {
-        const el = g(id);
-        el.style.transition = 'opacity .25s ease';
-        el.style.opacity = '0';
-        setTimeout(() => { el.className = 'ri-value'; el.textContent = val; el.style.opacity = '1'; }, 100);
-      }, i * 60);
+    const response = await callAI(prompt, uploadedPhotos, null);
+    updateCard(cardId, prompt, response, uploadedPhotos.map(p => p.url));
+  } catch(e) {
+    updateCardError(cardId, e.message);
+    showNotif('Error: ' + e.message, true);
+  }
+  btn.disabled = false; loadingBar.style.display = 'none';
+}
+async function callAI(prompt, photos, revisionContext) {
+  const systemPrompt = `You are an elite AI creative director and visual description specialist. Your role is to:
+1. Analyze the user's prompt with extreme intelligence and creativity
+2. If photos are provided, deeply analyze them and incorporate their visual elements, colors, mood, composition, and style into your response
+3. Generate an ultra-detailed, vivid, professional visual description/output that feels authentic and human-created — NEVER generic AI output
+4. Always push creative boundaries unless explicitly told to be classic/simple
+5. Match requested moods: dark, vibrant, cinematic, editorial, surreal, etc.
+6. If the prompt asks to generate/edit/create an image: provide an extremely detailed DALL-E or Midjourney-style prompt that would produce stunning, non-AI-looking results
+7. If the prompt asks questions or wants analysis: answer intelligently and thoroughly
+8. Make every result unique, unexpected, and memorable
+9. For image prompts: include specific details about lighting, color grading, composition, texture, atmosphere, technical specs
+10. ALWAYS clarify what the result would look like visually in vivid detail
+${revisionContext ? `REVISION CONTEXT: Previous prompt: "${revisionContext.prevPrompt}". Revision request: "${revisionContext.revisionRequest}".` : ''}
+Respond in a structured, detailed, professional format. Be verbose and specific. Make it feel like it came from a human expert. CRITICAL: Never use any emoji whatsoever in your responses. Not a single one. Zero emoji at all times.`;
+  const contentBlocks = [];
+  if (photos && photos.length > 0) {
+    photos.slice(0,30).forEach((photo, i) => {
+      contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: photo.type || 'image/jpeg', data: photo.base64 } });
+      contentBlocks.push({ type: 'text', text: `[Photo ${i+1} of ${photos.length}]` });
     });
-
-    g('saveBtn').disabled = false;
-    g('copyBtn').disabled = false;
-  } catch {
-    ['rRoad','rVillage','rDistrict','rCity','rState','rPost','rFull'].forEach(id => {
-      g(id).className = 'ri-value';
-      g(id).textContent = 'Gagal';
-    });
-    toast('Gagal ambil alamat. Cek koneksi.', 'err');
   }
+  contentBlocks.push({ type: 'text', text: prompt });
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: systemPrompt, messages: [{ role: 'user', content: contentBlocks }] })
+  });
+  if (!response.ok) { const err = await response.json(); throw new Error(err.error?.message || 'API Error'); }
+  const data = await response.json();
+  return data.content.map(b => b.text || '').join('');
 }
-
-function setStatus(state, label, desc) {
-  g('gpsStatus').className = 'gps-status' + (state ? ' ' + state : '');
-  sv('gpsLabel', label);
-  sv('gpsDesc', desc);
+function createLoadingCard(id, prompt) {
+  const div = document.createElement('div');
+  div.className = 'result-card'; div.id = `result-${id}`;
+  div.innerHTML = `<div class="result-header"><div class="result-meta"><span class="result-num">#${String(id).padStart(3,'0')}</span><span class="result-prompt-preview">${escHtml(prompt)}</span></div></div><div class="loading-card"><div class="spinner"></div><div class="loading-text">GENERATING<span class="loading-dots"></span></div></div>`;
+  return div;
 }
-
-// ═══════════════════ COPY ALL
-function copyAll() {
-  if (!coords || !geoData) { toast('Lokasi belum tersedia.', 'err'); return; }
-  const a = geoData.address || {};
-  const lat = coords.lat.toFixed(7), lng = coords.lng.toFixed(7);
-  const mlink = `https://maps.google.com/maps?q=${lat},${lng}`;
-  const text = `📍 INFORMASI LOKASI\n━━━━━━━━━━━━━━━━━━━\n🌐 Koordinat     : ${lat}, ${lng}\n📏 Akurasi       : ±${Math.round(coords.acc)}m\n━━━━━━━━━━━━━━━━━━━\n🏘️ Jalan/Gang    : ${a.road || a.pedestrian || '—'}\n🏡 Kelurahan     : ${a.village || a.suburb || a.neighbourhood || '—'}\n🏙️ Kecamatan     : ${a.city_district || a.district || a.county || '—'}\n🌆 Kota/Kab      : ${a.city || a.town || a.municipality || '—'}\n📍 Provinsi      : ${a.state || '—'}\n📮 Kode Pos      : ${a.postcode || '—'}\n━━━━━━━━━━━━━━━━━━━\n📋 Alamat Lengkap:\n${geoData.display_name || '—'}\n━━━━━━━━━━━━━━━━━━━\n🗺️ Google Maps   : ${mlink}`;
-  navigator.clipboard.writeText(text)
-    .then(() => toast('Semua info berhasil disalin! ✓'))
-    .catch(() => toast('Gagal salin.', 'err'));
+function updateCard(cardId, prompt, response, photoUrls) {
+  const card = document.getElementById(cardId); if (!card) return;
+  const photosHtml = photoUrls.length > 0 ? `<div style="padding:24px 24px 0;display:flex;gap:8px;flex-wrap:wrap;">${photoUrls.slice(0,5).map(url=>`<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #2a2a2a;"/>`).join('')}${photoUrls.length>5?`<div style="width:60px;height:60px;background:#1a1a1a;border-radius:6px;border:1px solid #2a2a2a;display:flex;align-items:center;justify-content:center;font-size:12px;color:#888;">+${photoUrls.length-5}</div>`:''}</div>` : '';
+  const id = cardId.replace('result-','');
+  card.innerHTML = `<div class="result-header"><div class="result-meta"><span class="result-num">#${String(id).padStart(3,'0')}</span><span class="result-prompt-preview">${escHtml(prompt)}</span></div><div class="result-actions"><button class="action-btn" onclick="copyResult('${cardId}')">⊕ Copy</button><button class="action-btn" onclick="toggleRevision('${cardId}')">↺ Revise</button><button class="action-btn danger" onclick="deleteCard('${cardId}')">✕</button></div></div>${photosHtml}<div class="result-text" id="${cardId}-text">${formatResponse(response)}</div><div class="revision-panel" id="${cardId}-revision"><div style="font-family:'Space Mono',monospace;font-size:11px;color:#888;letter-spacing:2px;margin-bottom:12px;">↺ REVISION REQUEST</div><textarea class="revision-input" id="${cardId}-rev-input" placeholder="Tell me what to change... e.g. Make it darker, more cinematic, redo completely"></textarea><div class="revision-actions-row"><button class="rev-cancel-btn" onclick="toggleRevision('${cardId}')">Cancel</button><button class="rev-submit-btn" onclick="submitRevision('${cardId}','${escAttr(prompt)}')">⚡ Apply Revision</button></div></div>`;
 }
-
-// ═══════════════════ SIMPAN
-async function simpan() {
-  if (!CU) { toast('Login dulu.', 'err'); return; }
-  if (!coords || !geoData) { toast('Lokasi belum tersedia.', 'err'); return; }
-
-  const a = geoData.address || {};
-  const lat = coords.lat.toFixed(7), lng = coords.lng.toFixed(7);
-  const rec = {
-    id: Date.now(),
-    lat: parseFloat(lat), lng: parseFloat(lng), acc: coords.acc,
-    road: a.road || a.pedestrian || a.footway || a.residential || '',
-    houseNum: a.house_number || '',
-    village: a.village || a.suburb || a.neighbourhood || a.quarter || '',
-    subdistrict: a.city_district || a.district || '',
-    district: a.county || a.state_district || '',
-    city: a.city || a.town || a.municipality || '',
-    state: a.state || '',
-    postcode: a.postcode || '',
-    full: geoData.display_name || '',
-    mapsLink: `https://maps.google.com/maps?q=${lat},${lng}`,
-    waktu: new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
-  };
-
-  const btn = g('saveBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Menyimpan...';
-
+function updateCardError(cardId, msg) {
+  const card = document.getElementById(cardId); if (!card) return;
+  const id = cardId.replace('result-','');
+  card.innerHTML = `<div class="result-header"><div class="result-meta"><span class="result-num">#${String(id).padStart(3,'0')}</span><span style="color:#ff3b30;font-size:13px;">Error occurred</span></div><div class="result-actions"><button class="action-btn danger" onclick="deleteCard('${cardId}')">✕ Remove</button></div></div><div style="padding:24px;color:#ff3b30;font-size:13px;">${escHtml(msg)}</div>`;
+}
+function formatResponse(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`(.*?)`/g,'<code>$1</code>')
+    .replace(/^### (.*$)/gm,'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:2px;color:#f5f5f5;margin:20px 0 8px;">$1</div>')
+    .replace(/^## (.*$)/gm,'<div style="font-family:Bebas Neue,sans-serif;font-size:24px;letter-spacing:3px;color:#f5f5f5;margin:24px 0 10px;">$1</div>')
+    .replace(/^# (.*$)/gm,'<div style="font-family:Bebas Neue,sans-serif;font-size:32px;letter-spacing:4px;color:#f5f5f5;margin:28px 0 12px;">$1</div>')
+    .replace(/\n\n/g,'</p><p style="margin-top:12px;">')
+    .replace(/\n/g,'<br/>');
+}
+function toggleRevision(cardId) {
+  const panel = document.getElementById(`${cardId}-revision`);
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) document.getElementById(`${cardId}-rev-input`)?.focus();
+}
+async function submitRevision(cardId, origPrompt) {
+  const revInput = document.getElementById(`${cardId}-rev-input`);
+  const revisionText = revInput?.value.trim();
+  if (!revisionText) { showNotif('Please describe what to revise!', true); return; }
+  const textArea = document.getElementById(`${cardId}-text`);
+  if (textArea) textArea.innerHTML = `<div style="display:flex;align-items:center;gap:12px;color:#888;"><div class="spinner"></div><span style="font-family:'Space Mono',monospace;font-size:12px;">REVISING<span class="loading-dots"></span></span></div>`;
+  const revPanel = document.getElementById(`${cardId}-revision`);
+  if (revPanel) revPanel.classList.remove('open');
   try {
-    await fbSaveRec(CU, rec);
-    toast('Lokasi tersimpan! ✓');
-    renderHist();
-  } catch {
-    toast('Gagal simpan. Cek internet.', 'err');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Simpan Lokasi';
+    const response = await callAI(`Original request: "${origPrompt}"\n\nRevision request: "${revisionText}"`, uploadedPhotos, { prevPrompt: origPrompt, revisionRequest: revisionText });
+    if (textArea) textArea.innerHTML = formatResponse(response);
+    showNotif('Revision applied');
+  } catch(e) {
+    if (textArea) textArea.innerHTML = `<span style="color:#ff3b30;">${escHtml(e.message)}</span>`;
+    showNotif('Revision failed: ' + e.message, true);
   }
 }
-
-async function hapus(id) {
-  if (!confirm('Hapus data ini?')) return;
-  try {
-    await fbDeleteRec(CU, id);
-    renderHist();
-    toast('Data dihapus.', 'inf');
-  } catch {
-    toast('Gagal hapus.', 'err');
-  }
+function copyResult(cardId) {
+  const el = document.getElementById(`${cardId}-text`); if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => showNotif('Copied to clipboard'));
 }
-
-// ═══════════════════ HISTORY
-async function renderHist() {
-  if (!CU) return;
-  const recs = await fbGetRecs(CU);
-  sv('histCount', recs.length + ' LOK');
-  const list = g('histList');
-  if (!recs.length) {
-    list.innerHTML = '<div class="empty-state"><div class="big">📍</div>Belum ada lokasi tersimpan.</div>';
-    return;
-  }
-  list.innerHTML = recs.map((r, i) => `
-    <div class="hist-card" style="animation-delay:${i * 0.04}s">
-      <div class="hist-card-top">
-        <div class="hist-num">${String(i + 1).padStart(2, '0')}</div>
-        <div class="hist-time">${r.waktu}</div>
-        <div class="hist-acts">
-          <button class="icon-btn" title="Buka Maps" onclick="window.open('${r.mapsLink}','_blank')">🗺</button>
-          <button class="icon-btn" title="Salin Koordinat" onclick="navigator.clipboard.writeText('${r.lat}, ${r.lng}').then(()=>toast('Disalin! ✓'))">⊕</button>
-          <button class="icon-btn del" title="Hapus" onclick="hapus(${r.id})">✕</button>
-        </div>
-      </div>
-      <div class="hist-body">
-        <div class="hf"><div class="hf-lbl">Latitude</div><div class="hf-val mono">${r.lat}</div></div>
-        <div class="hf"><div class="hf-lbl">Longitude</div><div class="hf-val mono">${r.lng}</div></div>
-        <div class="hf"><div class="hf-lbl">Akurasi</div><div class="hf-val mono">±${Math.round(r.acc)}m</div></div>
-        <div class="hf"><div class="hf-lbl">Kode Pos</div><div class="hf-val">${e(r.postcode) || '—'}</div></div>
-        ${r.road ? `<div class="hf full"><div class="hf-lbl">Jalan</div><div class="hf-val">${e(r.houseNum ? r.houseNum + ' ' : '')}${e(r.road)}</div></div>` : ''}
-        ${r.village ? `<div class="hf"><div class="hf-lbl">Kelurahan</div><div class="hf-val">${e(r.village)}</div></div>` : ''}
-        ${(r.subdistrict || r.district) ? `<div class="hf"><div class="hf-lbl">Kecamatan</div><div class="hf-val">${e(r.subdistrict || r.district)}</div></div>` : ''}
-        ${r.city ? `<div class="hf"><div class="hf-lbl">Kota/Kab</div><div class="hf-val">${e(r.city)}</div></div>` : ''}
-        ${r.state ? `<div class="hf"><div class="hf-lbl">Provinsi</div><div class="hf-val">${e(r.state)}</div></div>` : ''}
-        <div class="hf full"><div class="hf-lbl">Alamat Lengkap</div><div class="hf-val">${e(r.full)}</div></div>
-        <div class="hf full"><div class="hf-lbl">Link Maps</div><div class="hf-val"><a href="${r.mapsLink}" target="_blank">${r.mapsLink}</a></div></div>
-      </div>
-    </div>
-  `).join('');
+function deleteCard(cardId) {
+  const el = document.getElementById(cardId);
+  if (el) { el.style.opacity='0'; el.style.transform='translateY(-10px)'; el.style.transition='all 0.3s'; setTimeout(()=>el.remove(),300); }
 }
-
-// ═══════════════════ ADMIN
-let adminOK = false;
-
-function openAdmin() {
-  g('adminModal').classList.add('open');
-  adminOK ? renderAdminDash() : renderAdminPW();
+function showNotif(msg, isError) {
+  const el = document.getElementById('notif');
+  el.textContent = msg; el.className = 'notif show' + (isError ? ' error' : '');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
 }
-function closeAdmin() { g('adminModal').classList.remove('open'); }
-
-function renderAdminPW() {
-  g('adminBody').innerHTML = `
-    <div class="admin-pw-box">
-      <p>MASUKKAN PASSWORD ADMIN</p>
-      <input type="password" id="apw" placeholder="Password" maxlength="20" onkeydown="if(event.key==='Enter')checkPW()" style="max-width:220px;text-align:center;letter-spacing:4px"/>
-      <button class="btn btn-primary" style="max-width:200px" onclick="checkPW()">Masuk</button>
-    </div>`;
-  setTimeout(() => { const el = g('apw'); if (el) el.focus(); }, 200);
-}
-
-function checkPW() {
-  if (g('apw').value === ADMIN_PW) {
-    adminOK = true;
-    toast('Akses admin OK! ✓');
-    renderAdminDash();
-  } else {
-    toast('Password salah.', 'err');
-    g('apw').value = '';
-    g('apw').focus();
-  }
-}
-
-async function renderAdminDash() {
-  g('adminBody').innerHTML = `<div style="text-align:center;padding:40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#444;letter-spacing:2px"><span class="spin" style="border-top-color:#666"></span> MEMUAT...</div>`;
-
-  try {
-    const users  = await fbGetAllUsers();
-    const uList  = Object.keys(users);
-    let total    = 0;
-    const allRecs = {};
-
-    for (const u of uList) {
-      const recs = await fbGetRecs(u);
-      allRecs[u] = recs;
-      total += recs.length;
-    }
-
-    g('adminBody').innerHTML = `
-      <div class="admin-stats">
-        <div class="stat-box"><div class="stat-num">${uList.length}</div><div class="stat-lbl">PENGGUNA</div></div>
-        <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-lbl">TOTAL LOKASI</div></div>
-        <div class="stat-box"><div class="stat-num">${CU ? CU.substring(0, 6).toUpperCase() : '—'}</div><div class="stat-lbl">SESI AKTIF</div></div>
-      </div>
-      <div class="sec-title" style="margin-bottom:14px">Daftar Pengguna</div>
-      ${uList.length
-        ? uList.map(u => renderAdminUser(u, users[u], allRecs[u] || [])).join('')
-        : '<div class="empty-state"><div class="big">👤</div>Belum ada pengguna.</div>'
-      }
-    `;
-  } catch {
-    g('adminBody').innerHTML = `<div style="text-align:center;padding:40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666">Gagal memuat data. Cek koneksi.</div>`;
-  }
-}
-
-function renderAdminUser(un, info, recs) {
-  const joined = new Date(info.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-  return `
-    <div class="admin-user">
-      <div class="admin-user-top">
-        <div class="admin-avatar">${un.charAt(0).toUpperCase()}</div>
-        <div style="flex:1"><div class="admin-uname">${e(un)}</div><div class="admin-umeta">Daftar: ${joined}</div></div>
-        <div class="admin-ucount">${recs.length} LOKASI</div>
-      </div>
-      ${recs.length ? `
-      <div class="admin-hist">
-        <div class="admin-hist-title">HISTORY LOKASI (${recs.length} TOTAL)</div>
-        ${recs.map(r => `
-          <div class="admin-hist-item">
-            <div class="admin-hist-row">
-              <div><div class="ahl">Latitude</div><div class="ahv mono">${r.lat}</div></div>
-              <div><div class="ahl">Longitude</div><div class="ahv mono">${r.lng}</div></div>
-            </div>
-            <div class="admin-hist-row">
-              <div><div class="ahl">Akurasi</div><div class="ahv mono">±${Math.round(r.acc)}m</div></div>
-              <div><div class="ahl">Kode Pos</div><div class="ahv">${e(r.postcode) || '—'}</div></div>
-            </div>
-            ${r.road ? `<div class="admin-hist-row full"><div><div class="ahl">Jalan</div><div class="ahv">${e(r.houseNum ? r.houseNum + ' ' : '')}${e(r.road)}</div></div></div>` : ''}
-            <div class="admin-hist-row">
-              ${r.village ? `<div><div class="ahl">Kelurahan</div><div class="ahv">${e(r.village)}</div></div>` : '<div></div>'}
-              ${(r.subdistrict || r.district) ? `<div><div class="ahl">Kecamatan</div><div class="ahv">${e(r.subdistrict || r.district)}</div></div>` : '<div></div>'}
-            </div>
-            <div class="admin-hist-row">
-              ${r.city ? `<div><div class="ahl">Kota/Kab</div><div class="ahv">${e(r.city)}</div></div>` : '<div></div>'}
-              ${r.state ? `<div><div class="ahl">Provinsi</div><div class="ahv">${e(r.state)}</div></div>` : '<div></div>'}
-            </div>
-            <div class="admin-hist-row full"><div><div class="ahl">Alamat Lengkap</div><div class="ahv">${e(r.full)}</div></div></div>
-            <div class="admin-hist-row full"><div><div class="ahl">Link Google Maps</div><div class="ahv"><a href="${r.mapsLink}" target="_blank">${r.mapsLink}</a></div></div></div>
-            <div class="admin-hist-time">${r.waktu}</div>
-          </div>
-        `).join('')}
-      </div>` : `<div style="font-size:10px;color:#2e2e2e;font-family:'IBM Plex Mono',monospace;margin-top:8px">Belum ada lokasi.</div>`}
-    </div>`;
-}
-
-g('adminModal').addEventListener('click', function(ev) { if (ev.target === this) closeAdmin(); });
-
-// ═══════════════════ UTILS
-function g(id) { return document.getElementById(id); }
-function sv(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
-function e(s) { return s ? (s + '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''; }
-
-let tT;
-function toast(msg, type = 'ok') {
-  const t = g('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (type === 'err' ? ' err' : type === 'inf' ? ' inf' : '');
-  clearTimeout(tT);
-  tT = setTimeout(() => { t.className = 'toast' + (type === 'err' ? ' err' : type === 'inf' ? ' inf' : ''); }, 3200);
-}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+document.getElementById('emptyState').classList.add('show');
 </script>
-
-<!--
-═══════════════════════════════════════════════════════════════
-  PANDUAN SETUP FIREBASE (WAJIB BACA)
-═══════════════════════════════════════════════════════════════
-
-LANGKAH 1 — Buat project Firebase
-  1. Buka https://console.firebase.google.com
-  2. Klik "Add project" → beri nama → lanjut sampai selesai
-
-LANGKAH 2 — Aktifkan Realtime Database
-  1. Di sidebar kiri: Build → Realtime Database
-  2. Klik "Create database"
-  3. Pilih lokasi: asia-southeast1 (Singapore) → Next
-  4. Pilih "Start in test mode" → Enable
-     (test mode = semua bisa baca/tulis selama 30 hari,
-      nanti bisa ganti rules)
-
-LANGKAH 3 — Ambil config
-  1. Di sidebar kiri: Project Overview → klik icon </> (Web)
-  2. Register app → beri nama → Register
-  3. Copy bagian "firebaseConfig" yang muncul
-  4. Tempel ke dalam kode di bagian firebaseConfig di atas,
-     ganti semua nilai "GANTI_INI"
-
-LANGKAH 4 — Set Database Rules (opsional tapi dianjurkan)
-  1. Di Realtime Database → tab "Rules"
-  2. Ganti isinya dengan ini:
-     {
-       "rules": {
-         "users": { ".read": true, ".write": true },
-         "records": { ".read": true, ".write": true }
-       }
-     }
-  3. Publish
-
-LANGKAH 5 — Deploy ulang ke Netlify
-  1. Upload file HTML yang sudah diisi config tadi
-  2. Selesai — data sekarang disimpan di cloud
-
-SOAL AKURASI GPS:
-  - enableHighAccuracy sudah aktif di kode
-  - Di HP Android/iPhone: aktifkan GPS di pengaturan → Presisi Tinggi
-  - Akurasi <5m = sangat akurat (GPS hardware aktif)
-  - Akurasi >100m = pakai WiFi/IP (GPS belum lock, biasanya
-    terjadi kalau user baru buka atau di dalam ruangan)
-  - Solusi: tekan "Perbarui" setelah beberapa detik di luar ruangan
-
-═══════════════════════════════════════════════════════════════
--->
 </body>
 </html>
